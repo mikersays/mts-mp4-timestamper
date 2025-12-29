@@ -36,6 +36,91 @@ class MetadataExtractionError(Exception):
     """
     pass
 
+
+def _bcd_to_int(byte_val):
+    """Decode a BCD (Binary-Coded Decimal) byte to integer.
+
+    Args:
+        byte_val: A byte value where each nibble represents a decimal digit.
+
+    Returns:
+        Integer value decoded from BCD.
+    """
+    return ((byte_val >> 4) * 10) + (byte_val & 0x0F)
+
+
+def extract_avchd_timestamp(input_file):
+    """Extract timestamp from AVCHD/MTS file using DPM marker in SEI data.
+
+    AVCHD cameras (Sony, Panasonic, etc.) embed recording timestamps in
+    H.264 SEI (Supplemental Enhancement Information) user data with a
+    'DPM' marker. The timestamp is BCD-encoded.
+
+    DPM marker format (at offset after 'DPM'):
+        Byte 0: Month (BCD, e.g., 0x12 = December)
+        Bytes 1-2: Unknown/reserved
+        Bytes 3-4: Year (BCD, e.g., 0x20 0x25 = 2025)
+        Bytes 5-6: Unknown (possibly frame/clip info)
+        Byte 7: Day (BCD, e.g., 0x19 = 19th)
+        Byte 8: Hour (BCD, e.g., 0x14 = 14:00)
+        Byte 9: Minute (BCD, e.g., 0x32 = 32)
+        Byte 10: Second (BCD, e.g., 0x35 = 35)
+
+    Args:
+        input_file: Path to the MTS/AVCHD video file.
+
+    Returns:
+        datetime object representing the recording timestamp, or None if
+        the DPM marker is not found or cannot be parsed.
+    """
+    try:
+        with open(input_file, 'rb') as f:
+            # Read first 64KB - DPM marker is typically in the first few KB
+            data = f.read(65536)
+
+        # Search for DPM marker (0x44 0x50 0x4D = 'DPM')
+        dpm_marker = b'DPM'
+        idx = data.find(dpm_marker)
+
+        if idx < 0:
+            return None
+
+        # Ensure we have enough bytes after the marker
+        if idx + 14 > len(data):
+            return None
+
+        # Extract timestamp bytes (starting after 'DPM')
+        ts_data = data[idx + 3:idx + 14]
+
+        # Parse BCD-encoded timestamp
+        month = _bcd_to_int(ts_data[0])
+        year_hi = _bcd_to_int(ts_data[3])  # Usually 20
+        year_lo = _bcd_to_int(ts_data[4])  # e.g., 25 for 2025
+        year = year_hi * 100 + year_lo
+        day = _bcd_to_int(ts_data[6])
+        hour = _bcd_to_int(ts_data[8])
+        minute = _bcd_to_int(ts_data[9])
+        second = _bcd_to_int(ts_data[10])
+
+        # Validate parsed values
+        if not (1 <= month <= 12):
+            return None
+        if not (1 <= day <= 31):
+            return None
+        if not (0 <= hour <= 23):
+            return None
+        if not (0 <= minute <= 59):
+            return None
+        if not (0 <= second <= 59):
+            return None
+        if not (1990 <= year <= 2100):
+            return None
+
+        return datetime(year, month, day, hour, minute, second)
+
+    except (IOError, OSError, ValueError):
+        return None
+
 # Position constants for timestamp overlay
 DEFAULT_POSITION = 'bottom-right'
 POSITIONS = {
@@ -175,7 +260,11 @@ def check_ffmpeg():
 
 
 def get_video_creation_time(input_file):
-    """Extract the creation/recording time from video metadata using ffprobe.
+    """Extract the creation/recording time from video metadata.
+
+    Uses AVCHD DPM marker extraction as the primary method (for MTS files
+    from Sony, Panasonic, and other AVCHD cameras), with ffprobe metadata
+    extraction as a fallback.
 
     Args:
         input_file: Path to the video file.
@@ -188,6 +277,12 @@ def get_video_creation_time(input_file):
             video metadata. This error is raised instead of falling back to
             file modification time to ensure timestamp accuracy.
     """
+    # Primary method: Extract from AVCHD DPM marker (embedded in H.264 SEI data)
+    avchd_timestamp = extract_avchd_timestamp(input_file)
+    if avchd_timestamp is not None:
+        return avchd_timestamp
+
+    # Fallback: Try ffprobe creation_time tag
     ffprobe = FFPROBE_PATH or get_ffprobe_path()
     try:
         result = subprocess.run(

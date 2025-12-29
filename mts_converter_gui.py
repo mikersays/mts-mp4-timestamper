@@ -21,7 +21,7 @@ from ffmpeg_utils import (
     check_ffmpeg_available,
     get_subprocess_flags
 )
-from mts_converter import MetadataExtractionError
+from mts_converter import MetadataExtractionError, extract_avchd_timestamp
 
 try:
     import tkinter as tk
@@ -399,6 +399,10 @@ class MTSConverterGUI:
     def get_video_creation_time(self, input_file: str) -> datetime:
         """Extract the creation/recording time from video metadata.
 
+        Uses AVCHD DPM marker extraction as the primary method (for MTS files
+        from Sony, Panasonic, and other AVCHD cameras), with ffprobe metadata
+        extraction as a fallback.
+
         Args:
             input_file: Path to the input video file.
 
@@ -410,6 +414,12 @@ class MTSConverterGUI:
                 video metadata. This error is raised instead of falling back to
                 file modification time to ensure timestamp accuracy.
         """
+        # Primary method: Extract from AVCHD DPM marker (embedded in H.264 SEI data)
+        avchd_timestamp = extract_avchd_timestamp(input_file)
+        if avchd_timestamp is not None:
+            return avchd_timestamp
+
+        # Fallback: Try ffprobe creation_time tag
         ffprobe = self.ffprobe_path or get_ffprobe_path()
         try:
             result = subprocess.run(

@@ -12,11 +12,11 @@
 - [x] Filter to only .mts/.MTS files
 - [x] Validate all files exist before starting batch
 
-### Task 1.3: Implement batch conversion logic
-- [ ] Create `convert_batch()` method that iterates through files
-- [ ] Call existing `convert_video()` for each file
-- [ ] Track success/failure for each file
-- [ ] Invoke progress callback after each file
+### Task 1.3: Implement batch conversion logic [14aba37]
+- [x] Create `convert_batch()` method that iterates through files
+- [x] Call existing `convert_video()` for each file
+- [x] Track success/failure for each file
+- [x] Invoke progress callback after each file
 
 ### Task 1.4: Add output directory support
 - [ ] Add `output_dir` parameter to batch converter

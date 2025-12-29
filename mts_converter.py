@@ -26,6 +26,52 @@ from ffmpeg_utils import (
 FFMPEG_PATH = None
 FFPROBE_PATH = None
 
+# Position constants for timestamp overlay
+DEFAULT_POSITION = 'bottom-right'
+POSITIONS = {
+    'top-left': 'x=20:y=20',
+    'top-right': 'x=w-tw-20:y=20',
+    'bottom-left': 'x=20:y=h-th-20',
+    'bottom-right': 'x=w-tw-20:y=h-th-20',
+}
+
+
+def get_position_coordinates(position, margin=20):
+    """Get FFmpeg x:y coordinate expression for a given position.
+
+    Args:
+        position: One of 'top-left', 'top-right', 'bottom-left', 'bottom-right',
+                  or None (uses DEFAULT_POSITION).
+        margin: Pixel margin from edges (default: 20).
+
+    Returns:
+        String containing FFmpeg x=...:y=... expression.
+
+    Raises:
+        ValueError: If position is not a valid position name.
+    """
+    if position is None:
+        position = DEFAULT_POSITION
+
+    if position not in POSITIONS:
+        raise ValueError(
+            f"Invalid position '{position}'. "
+            f"Must be one of: {', '.join(POSITIONS.keys())}"
+        )
+
+    # Build coordinates with the specified margin
+    if position == 'top-left':
+        return f'x={margin}:y={margin}'
+    elif position == 'top-right':
+        return f'x=w-tw-{margin}:y={margin}'
+    elif position == 'bottom-left':
+        return f'x={margin}:y=h-th-{margin}'
+    elif position == 'bottom-right':
+        return f'x=w-tw-{margin}:y=h-th-{margin}'
+
+    # Fallback (should not reach here due to validation above)
+    return POSITIONS[position]
+
 
 def parse_args(args):
     """Parse command-line arguments for batch processing support.

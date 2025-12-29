@@ -250,3 +250,44 @@ class TestPositionDropdown:
             "GUI should use ttk.Combobox for position selection"
         assert 'textvariable=self.position' in source, \
             "Position combobox should be bound to self.position"
+
+
+class TestGUIPositionIntegration:
+    """Tests for GUI position integration with conversion (Task 4.2)."""
+
+    def test_gui_conversion_uses_position_variable(self):
+        """GUI conversion should read position from self.position."""
+        with open('mts_converter_gui.py', 'r') as f:
+            source = f.read()
+        assert 'self.position.get()' in source, \
+            "GUI should read position value using self.position.get()"
+
+    def test_gui_conversion_has_position_mapping(self):
+        """GUI conversion should have positions mapping dictionary."""
+        with open('mts_converter_gui.py', 'r') as f:
+            source = f.read()
+        # Check that position mapping is defined in conversion code
+        assert 'positions = {' in source, \
+            "GUI should have positions dictionary for coordinate mapping"
+
+    def test_gui_conversion_position_mapping_matches_cli(self):
+        """GUI position mapping should match CLI position constants."""
+        with open('mts_converter_gui.py', 'r') as f:
+            source = f.read()
+        # Verify all four corner positions have correct x:y coordinates
+        assert '"top-left": "x=20:y=20"' in source, \
+            "top-left position should use correct coordinates"
+        assert '"top-right": "x=w-tw-20:y=20"' in source, \
+            "top-right position should use correct coordinates"
+        assert '"bottom-left": "x=20:y=h-th-20"' in source, \
+            "bottom-left position should use correct coordinates"
+        assert '"bottom-right": "x=w-tw-20:y=h-th-20"' in source, \
+            "bottom-right position should use correct coordinates"
+
+    def test_gui_conversion_default_fallback_is_bottom_right(self):
+        """GUI conversion should fall back to bottom-right if position invalid."""
+        with open('mts_converter_gui.py', 'r') as f:
+            source = f.read()
+        # Check the .get() fallback uses bottom-right
+        assert 'positions["bottom-right"]' in source, \
+            "GUI should use bottom-right as fallback position"

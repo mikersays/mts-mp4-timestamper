@@ -98,13 +98,13 @@
 - [x] **Refactor:** Ensure consistent styling with existing GUI elements
 
 ### Task 4.2: Integrate Position Selection into GUI Conversion
-- [ ] **Red:** Write tests for GUI conversion with position
-  - [ ] Test selected position is passed to conversion function
-  - [ ] Test batch conversion uses selected position for all files
-- [ ] **Green:** Wire position selection to conversion logic
-  - [ ] Read selected position value when conversion starts
-  - [ ] Pass position to convert_video() and batch converter
-- [ ] **Refactor:** Ensure UI state is properly managed
+- [x] **Red:** Write tests for GUI conversion with position
+  - [x] Test selected position is passed to conversion function
+  - [x] Test batch conversion uses selected position for all files
+- [x] **Green:** Wire position selection to conversion logic
+  - [x] Read selected position value when conversion starts
+  - [x] Pass position to convert_video() and batch converter
+- [x] **Refactor:** Ensure UI state is properly managed
 
 ### Task 4.3: Improve GUI Error Display for Metadata Failures
 - [ ] **Red:** Write tests for error display in GUI

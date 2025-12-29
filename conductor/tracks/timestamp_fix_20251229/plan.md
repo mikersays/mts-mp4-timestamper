@@ -56,7 +56,7 @@
 
 ---
 
-## Phase 3: CLI Integration [checkpoint: ]
+## Phase 3: CLI Integration [checkpoint: 97f5542]
 
 ### Task 3.1: Add --position Flag to CLI [4adc43d]
 - [x] **Red:** Write tests for CLI position argument parsing
@@ -86,16 +86,16 @@
 ## Phase 4: GUI Integration [checkpoint: ]
 
 ### Task 4.1: Add Position Dropdown to GUI
-- [ ] **Red:** Write tests for GUI position dropdown widget
-  - [ ] Test dropdown exists with four position options
-  - [ ] Test default selection is Bottom-Right
-  - [ ] Test selection can be changed programmatically
-- [ ] **Green:** Implement position dropdown in GUI
-  - [ ] Add ttk.Combobox for position selection
-  - [ ] Populate with four corner options
-  - [ ] Set default value to Bottom-Right
-  - [ ] Position widget appropriately in layout
-- [ ] **Refactor:** Ensure consistent styling with existing GUI elements
+- [x] **Red:** Write tests for GUI position dropdown widget
+  - [x] Test dropdown exists with four position options
+  - [x] Test default selection is Bottom-Right
+  - [x] Test selection can be changed programmatically
+- [x] **Green:** Implement position dropdown in GUI
+  - [x] Add ttk.Combobox for position selection
+  - [x] Populate with four corner options
+  - [x] Set default value to Bottom-Right
+  - [x] Position widget appropriately in layout
+- [x] **Refactor:** Ensure consistent styling with existing GUI elements
 
 ### Task 4.2: Integrate Position Selection into GUI Conversion
 - [ ] **Red:** Write tests for GUI conversion with position

@@ -204,3 +204,49 @@ class TestBatchCompletionDisplay:
             source = f.read()
         assert 'self.batch_results' in source, \
             "MTSConverterGUI should have batch_results attribute"
+
+
+class TestPositionDropdown:
+    """Tests for position dropdown widget (Task 4.1)."""
+
+    def test_gui_class_has_position_variable(self):
+        """GUI should have position StringVar."""
+        with open('mts_converter_gui.py', 'r') as f:
+            source = f.read()
+        assert 'self.position' in source, \
+            "MTSConverterGUI should have position attribute"
+
+    def test_gui_position_dropdown_has_four_options(self):
+        """Position dropdown should have exactly four corner options."""
+        with open('mts_converter_gui.py', 'r') as f:
+            source = f.read()
+        # Check that position combobox values contain exactly the four corners
+        assert '"top-left"' in source, "Position dropdown should include top-left"
+        assert '"top-right"' in source, "Position dropdown should include top-right"
+        assert '"bottom-left"' in source, "Position dropdown should include bottom-left"
+        assert '"bottom-right"' in source, "Position dropdown should include bottom-right"
+        # Ensure center is NOT in the position options
+        # The values list should only have the four corners
+        import re
+        values_match = re.search(r'values=\[([^\]]+)\]', source)
+        if values_match:
+            values_str = values_match.group(1)
+            assert '"center"' not in values_str, \
+                "Position dropdown should NOT include center option"
+
+    def test_gui_position_default_is_bottom_right(self):
+        """Position dropdown should default to bottom-right."""
+        with open('mts_converter_gui.py', 'r') as f:
+            source = f.read()
+        # Check that position StringVar is initialized with "bottom-right"
+        assert 'self.position = tk.StringVar(value="bottom-right")' in source, \
+            "Position should default to bottom-right"
+
+    def test_gui_has_position_combobox(self):
+        """GUI should have a combobox for position selection."""
+        with open('mts_converter_gui.py', 'r') as f:
+            source = f.read()
+        assert 'ttk.Combobox' in source, \
+            "GUI should use ttk.Combobox for position selection"
+        assert 'textvariable=self.position' in source, \
+            "Position combobox should be bound to self.position"

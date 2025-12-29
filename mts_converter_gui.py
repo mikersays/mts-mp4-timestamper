@@ -58,7 +58,7 @@ class MTSConverterGUI:
         self.output_dir: Optional[Path] = None
 
         # Timestamp options
-        self.position = tk.StringVar(value="top-left")
+        self.position = tk.StringVar(value="bottom-right")
         self.font_size = tk.IntVar(value=24)
 
         # Progress tracking
@@ -186,7 +186,7 @@ class MTSConverterGUI:
         position_combo = ttk.Combobox(
             options_frame,
             textvariable=self.position,
-            values=["top-left", "top-right", "bottom-left", "bottom-right", "center"],
+            values=["top-left", "top-right", "bottom-left", "bottom-right"],
             state="readonly",
             width=15
         )
@@ -573,9 +573,8 @@ class MTSConverterGUI:
                 "top-right": "x=w-tw-20:y=20",
                 "bottom-left": "x=20:y=h-th-20",
                 "bottom-right": "x=w-tw-20:y=h-th-20",
-                "center": "x=(w-tw)/2:y=(h-th)/2"
             }
-            pos = positions.get(self.position.get(), positions["top-left"])
+            pos = positions.get(self.position.get(), positions["bottom-right"])
             font_size = self.font_size.get()
 
             # Build drawtext filter

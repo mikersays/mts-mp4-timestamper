@@ -105,6 +105,7 @@ def parse_args(args):
         result.output_dir = None
         result.continue_on_error = True
         result.legacy_mode = True
+        result.position = DEFAULT_POSITION
         return result
 
     parser = argparse.ArgumentParser(
@@ -146,6 +147,14 @@ Examples:
         action='store_false',
         dest='continue_on_error',
         help='Stop processing if any file fails'
+    )
+
+    parser.add_argument(
+        '-p', '--position',
+        dest='position',
+        default=DEFAULT_POSITION,
+        choices=['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+        help=f'Timestamp position (default: {DEFAULT_POSITION})'
     )
 
     parsed = parser.parse_args(args)

@@ -130,6 +130,99 @@ class TestCLIArgumentParser:
         assert args is None
 
 
+class TestCLIPositionArgument:
+    """Tests for CLI --position argument parsing."""
+
+    def test_parse_args_position_flag_exists(self):
+        """parse_args should accept --position flag."""
+        from mts_converter import parse_args
+
+        args = parse_args(['video.mts', '--position', 'top-left'])
+
+        assert hasattr(args, 'position')
+
+    def test_parse_args_position_accepts_top_left(self):
+        """parse_args should accept top-left position."""
+        from mts_converter import parse_args
+
+        args = parse_args(['video.mts', '--position', 'top-left'])
+
+        assert args.position == 'top-left'
+
+    def test_parse_args_position_accepts_top_right(self):
+        """parse_args should accept top-right position."""
+        from mts_converter import parse_args
+
+        args = parse_args(['video.mts', '--position', 'top-right'])
+
+        assert args.position == 'top-right'
+
+    def test_parse_args_position_accepts_bottom_left(self):
+        """parse_args should accept bottom-left position."""
+        from mts_converter import parse_args
+
+        args = parse_args(['video.mts', '--position', 'bottom-left'])
+
+        assert args.position == 'bottom-left'
+
+    def test_parse_args_position_accepts_bottom_right(self):
+        """parse_args should accept bottom-right position."""
+        from mts_converter import parse_args
+
+        args = parse_args(['video.mts', '--position', 'bottom-right'])
+
+        assert args.position == 'bottom-right'
+
+    def test_parse_args_position_defaults_to_bottom_right(self):
+        """parse_args position should default to bottom-right."""
+        from mts_converter import parse_args, DEFAULT_POSITION
+
+        args = parse_args(['video.mts'])
+
+        assert args.position == DEFAULT_POSITION
+        assert args.position == 'bottom-right'
+
+    def test_parse_args_position_short_flag(self):
+        """parse_args should accept -p as short form of --position."""
+        from mts_converter import parse_args
+
+        args = parse_args(['video.mts', '-p', 'top-left'])
+
+        assert args.position == 'top-left'
+
+    def test_parse_args_position_invalid_value_raises_error(self):
+        """parse_args should reject invalid position values."""
+        from mts_converter import parse_args
+        import sys
+
+        # argparse exits with SystemExit on invalid choices
+        with pytest.raises(SystemExit):
+            parse_args(['video.mts', '--position', 'invalid-position'])
+
+    def test_parse_args_position_with_other_options(self):
+        """parse_args should handle position with other options."""
+        from mts_converter import parse_args
+
+        args = parse_args([
+            'video1.mts', 'video2.mts',
+            '--position', 'top-right',
+            '--output-dir', '/tmp/output'
+        ])
+
+        assert args.position == 'top-right'
+        assert args.output_dir == '/tmp/output'
+        assert args.input_paths == ['video1.mts', 'video2.mts']
+
+    def test_parse_args_legacy_mode_has_position(self):
+        """Legacy mode should also have position attribute."""
+        from mts_converter import parse_args
+
+        args = parse_args(['input.mts', 'output.mp4'])
+
+        # Legacy mode should still have position (defaulted)
+        assert hasattr(args, 'position')
+
+
 class TestCLIBackwardCompatibility:
     """Tests for backward compatibility with existing CLI usage."""
 

@@ -51,7 +51,7 @@
 - [x] Manual verification of CLI batch mode
 - [x] Phase checkpoint
 
-## Phase 3: GUI Integration
+## Phase 3: GUI Integration [checkpoint: 1bdaaa3]
 
 ### Task 3.1: Add file queue UI components [f02a232]
 - [x] Replace single file input with file list widget
@@ -81,10 +81,10 @@
 - [x] List any failed files with error reasons
 - [x] Allow user to retry failed files
 
-### Task 3.6: Phase 3 Completion
-- [ ] Run all tests and verify >80% coverage
-- [ ] Manual verification of GUI batch mode
-- [ ] Phase checkpoint
+### Task 3.6: Phase 3 Completion [1bdaaa3]
+- [x] Run all tests and verify >80% coverage
+- [x] Manual verification of GUI batch mode
+- [x] Phase checkpoint
 
 ## Phase 4: Documentation and Polish
 

@@ -86,7 +86,7 @@
 - [x] Manual verification of GUI batch mode
 - [x] Phase checkpoint
 
-## Phase 4: Documentation and Polish
+## Phase 4: Documentation and Polish [checkpoint: 09fb521]
 
 ### Task 4.1: Update README documentation [0655bdf]
 - [x] Document CLI batch usage with examples
@@ -102,7 +102,7 @@
 - [x] Performance testing with large batches
 - [x] UI polish and edge case handling
 
-### Task 4.4: Phase 4 Completion
+### Task 4.4: Phase 4 Completion [09fb521]
 - [x] Final test run and coverage report
 - [x] Manual verification of complete feature
 - [x] Final phase checkpoint

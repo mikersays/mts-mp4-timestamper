@@ -201,12 +201,22 @@ def get_video_creation_time(input_file):
         return datetime.now()
 
 
-def convert_video(input_file, output_file=None, font_size=24, position="top-left"):
+def convert_video(input_file, output_file=None, font_size=24, position=None):
     """
     Convert MTS to MP4 with dynamic timestamp overlay.
 
     The timestamp shows the original filming date/time and updates every minute
     as the video progresses.
+
+    Args:
+        input_file: Path to the input MTS file.
+        output_file: Optional path for the output MP4 file.
+        font_size: Font size for the timestamp text (default: 24).
+        position: Timestamp position. One of 'top-left', 'top-right',
+                  'bottom-left', 'bottom-right'. Default is DEFAULT_POSITION.
+
+    Returns:
+        True if conversion succeeded, False otherwise.
     """
     input_path = Path(input_file)
 
@@ -226,26 +236,8 @@ def convert_video(input_file, output_file=None, font_size=24, position="top-left
     filming_time = get_video_creation_time(input_file)
     print(f"Detected filming time: {filming_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
-    # Calculate base timestamp components for FFmpeg expression
-    base_year = filming_time.year
-    base_month = filming_time.month
-    base_day = filming_time.day
-    base_hour = filming_time.hour
-    base_minute = filming_time.minute
-    base_second = filming_time.second
-
-    # Convert base time to total seconds since midnight for easier calculation
-    base_seconds = base_hour * 3600 + base_minute * 60 + base_second
-
-    # Position mapping
-    positions = {
-        "top-left": "x=20:y=20",
-        "top-right": "x=w-tw-20:y=20",
-        "bottom-left": "x=20:y=h-th-20",
-        "bottom-right": "x=w-tw-20:y=h-th-20",
-        "center": "x=(w-tw)/2:y=(h-th)/2"
-    }
-    pos = positions.get(position, positions["top-left"])
+    # Get position coordinates using the utility function
+    pos = get_position_coordinates(position)
 
     # Build the drawtext filter with dynamic time calculation
     # The timestamp updates every minute (floor to minute)

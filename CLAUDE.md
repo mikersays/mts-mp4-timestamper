@@ -14,8 +14,13 @@ MTS to MP4 video converter that adds dynamic timestamp overlays showing the orig
 ## Running the Application
 
 ```bash
-# Command-line version
+# Command-line version (single file)
 python mts_converter.py input.mts [output.mp4]
+
+# Command-line version (batch)
+python mts_converter.py file1.mts file2.mts file3.mts
+python mts_converter.py ./videos/                     # All MTS in directory
+python mts_converter.py *.mts --output-dir ./output/  # With output directory
 
 # GUI version (Windows)
 python mts_converter_gui.py
@@ -27,14 +32,24 @@ python mts_converter_gui.py
 
 ## Architecture
 
-Two implementations exist:
+### Module Structure
 - `mts_converter.py` - CLI version with interactive fallback when no args provided
 - `mts_converter_gui.py` - tkinter GUI with threading for non-blocking conversion
+- `batch_converter.py` - Batch processing module with progress callbacks
+- `ffmpeg_utils.py` - FFmpeg path resolution (bundled/system)
 
-Core conversion flow:
+### Core Conversion Flow
 1. Extract filming timestamp via `ffprobe` metadata (falls back to file mtime)
 2. Build FFmpeg `drawtext` filter using `pts:localtime` for dynamic time display
 3. Transcode to H.264/AAC MP4 with `+faststart` flag
+
+### Batch Processing
+The `BatchConverter` class in `batch_converter.py` provides:
+- File discovery from paths, directories, and glob patterns
+- Progress callbacks for UI updates (`BatchProgress` protocol)
+- Result tracking via `BatchResult` dataclass
+- Output directory support with conflict resolution (numeric suffix)
+- Continue-on-error behavior (individual failures don't stop batch)
 
 Key FFmpeg filter pattern:
 ```

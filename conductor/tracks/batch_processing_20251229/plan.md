@@ -7,10 +7,10 @@
 - [x] Define BatchResult dataclass for tracking conversion results
 - [x] Define BatchProgress callback protocol for progress updates
 
-### Task 1.2: Implement file discovery
-- [ ] Add function to resolve file paths from arguments (files, directories, globs)
-- [ ] Filter to only .mts/.MTS files
-- [ ] Validate all files exist before starting batch
+### Task 1.2: Implement file discovery [94d8894]
+- [x] Add function to resolve file paths from arguments (files, directories, globs)
+- [x] Filter to only .mts/.MTS files
+- [x] Validate all files exist before starting batch
 
 ### Task 1.3: Implement batch conversion logic
 - [ ] Create `convert_batch()` method that iterates through files

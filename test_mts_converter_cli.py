@@ -305,3 +305,109 @@ class TestCLIBatchIntegration:
 
         assert success == 1
         assert failed == 1
+
+
+class TestCLIExitCodes:
+    """Tests for CLI exit code handling."""
+
+    def test_main_exits_with_0_on_all_success(self, tmp_path, mocker):
+        """main should exit with code 0 when all conversions succeed."""
+        import sys
+        from mts_converter import main
+        from batch_converter import BatchResult
+
+        mts1 = tmp_path / "video1.mts"
+        mts2 = tmp_path / "video2.mts"
+        mts1.touch()
+        mts2.touch()
+
+        mocker.patch('sys.argv', ['mts_converter', str(mts1), str(mts2)])
+        mocker.patch('mts_converter.check_ffmpeg', return_value=True)
+        mocker.patch('batch_converter.discover_files', return_value=[mts1, mts2])
+
+        mock_batch = mocker.patch('batch_converter.BatchConverter')
+        mock_instance = mock_batch.return_value
+        mock_instance.convert_batch.return_value = [
+            BatchResult(input_file=mts1, output_file=mts1.with_suffix('.mp4'), success=True, error=None),
+            BatchResult(input_file=mts2, output_file=mts2.with_suffix('.mp4'), success=True, error=None),
+        ]
+
+        mock_exit = mocker.patch('sys.exit')
+
+        main()
+
+        # Should exit with 0 (success) or not call sys.exit at all
+        if mock_exit.called:
+            mock_exit.assert_called_with(0)
+
+    def test_main_exits_with_1_on_any_failure(self, tmp_path, mocker):
+        """main should exit with code 1 when any conversion fails."""
+        import sys
+        from mts_converter import main
+        from batch_converter import BatchResult
+
+        mts1 = tmp_path / "video1.mts"
+        mts2 = tmp_path / "video2.mts"
+        mts1.touch()
+        mts2.touch()
+
+        mocker.patch('sys.argv', ['mts_converter', str(mts1), str(mts2)])
+        mocker.patch('mts_converter.check_ffmpeg', return_value=True)
+        mocker.patch('batch_converter.discover_files', return_value=[mts1, mts2])
+
+        mock_batch = mocker.patch('batch_converter.BatchConverter')
+        mock_instance = mock_batch.return_value
+        mock_instance.convert_batch.return_value = [
+            BatchResult(input_file=mts1, output_file=mts1.with_suffix('.mp4'), success=True, error=None),
+            BatchResult(input_file=mts2, output_file=None, success=False, error="Conversion failed"),
+        ]
+
+        mock_exit = mocker.patch('sys.exit')
+
+        main()
+
+        mock_exit.assert_called_with(1)
+
+    def test_failed_files_display_error_messages(self, tmp_path, mocker, capsys):
+        """Failed files should display clear error messages."""
+        from mts_converter import run_cli
+        from batch_converter import BatchResult
+
+        mts1 = tmp_path / "video1.mts"
+        mts2 = tmp_path / "video2.mts"
+        mts1.touch()
+        mts2.touch()
+
+        mocker.patch('mts_converter.check_ffmpeg', return_value=True)
+        mocker.patch('batch_converter.discover_files', return_value=[mts1, mts2])
+
+        mock_batch = mocker.patch('batch_converter.BatchConverter')
+        mock_instance = mock_batch.return_value
+        mock_instance.convert_batch.return_value = [
+            BatchResult(input_file=mts1, output_file=mts1.with_suffix('.mp4'), success=True, error=None),
+            BatchResult(input_file=mts2, output_file=None, success=False, error="FFmpeg encoding error"),
+        ]
+
+        run_cli([str(mts1), str(mts2)])
+
+        captured = capsys.readouterr()
+        # Should display the failed file name and error
+        assert "video2.mts" in captured.out
+        assert "FFmpeg encoding error" in captured.out
+
+    def test_main_uses_run_cli(self, tmp_path, mocker):
+        """main should use run_cli for command execution."""
+        from mts_converter import main
+
+        mts_file = tmp_path / "video.mts"
+        mts_file.touch()
+
+        mocker.patch('sys.argv', ['mts_converter', str(mts_file)])
+        mock_run_cli = mocker.patch('mts_converter.run_cli', return_value=(1, 0))
+
+        try:
+            main()
+        except SystemExit:
+            pass
+
+        mock_run_cli.assert_called_once()

@@ -337,17 +337,10 @@ def main():
     print("  MTS to MP4 Converter with Timestamp Overlay")
     print("=" * 60)
 
-    # Check for FFmpeg
-    if not check_ffmpeg():
-        print("\nError: FFmpeg is not installed or not in PATH.")
-        print("Please install FFmpeg:")
-        print("  - Windows: Download from https://ffmpeg.org/download.html")
-        print("            or use: winget install FFmpeg")
-        print("  - Add FFmpeg to your system PATH")
-        sys.exit(1)
+    args = sys.argv[1:]
 
-    # Parse arguments
-    if len(sys.argv) < 2:
+    # Interactive mode if no arguments
+    if not args:
         print("\nUsage: python mts_converter.py <input.mts> [output.mp4]")
         print("\nOptions:")
         print("  input.mts   - Path to the input .MTS video file")
@@ -362,18 +355,21 @@ def main():
         if not input_file:
             print("No file provided. Exiting.")
             sys.exit(1)
-    else:
-        input_file = sys.argv[1]
 
-    output_file = sys.argv[2] if len(sys.argv) > 2 else None
+        args = [input_file]
 
-    # Convert
-    success = convert_video(input_file, output_file)
+    # Use run_cli for both single-file and batch mode
+    success_count, failure_count = run_cli(args)
 
-    if not success:
+    # Print completion message for successful conversions
+    if success_count > 0:
+        print("\nDone!")
+
+    # Exit with appropriate code
+    if failure_count > 0:
         sys.exit(1)
-
-    print("\nDone!")
+    else:
+        sys.exit(0)
 
 
 if __name__ == "__main__":

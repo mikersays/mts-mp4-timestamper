@@ -18,10 +18,10 @@
 - [x] Track success/failure for each file
 - [x] Invoke progress callback after each file
 
-### Task 1.4: Add output directory support
-- [ ] Add `output_dir` parameter to batch converter
-- [ ] Generate output paths in specified directory
-- [ ] Handle filename conflicts with numeric suffix
+### Task 1.4: Add output directory support [4af5928]
+- [x] Add `output_dir` parameter to batch converter
+- [x] Generate output paths in specified directory
+- [x] Handle filename conflicts with numeric suffix
 
 ### Task 1.5: Phase 1 Completion
 - [ ] Run all tests and verify >80% coverage

@@ -58,16 +58,16 @@
 
 ## Phase 3: CLI Integration [checkpoint: ]
 
-### Task 3.1: Add --position Flag to CLI
-- [ ] **Red:** Write tests for CLI position argument parsing
-  - [ ] Test --position flag accepts valid values (top-left, top-right, bottom-left, bottom-right)
-  - [ ] Test --position defaults to bottom-right when not specified
-  - [ ] Test invalid position value shows helpful error
-- [ ] **Green:** Implement CLI argument parsing for position
-  - [ ] Add --position argument to argparse configuration
-  - [ ] Validate position value against allowed options
-  - [ ] Pass position to conversion function
-- [ ] **Refactor:** Update help text and usage examples
+### Task 3.1: Add --position Flag to CLI [4adc43d]
+- [x] **Red:** Write tests for CLI position argument parsing
+  - [x] Test --position flag accepts valid values (top-left, top-right, bottom-left, bottom-right)
+  - [x] Test --position defaults to bottom-right when not specified
+  - [x] Test invalid position value shows helpful error
+- [x] **Green:** Implement CLI argument parsing for position
+  - [x] Add --position argument to argparse configuration
+  - [x] Validate position value against allowed options
+  - [x] Pass position to conversion function
+- [x] **Refactor:** Update help text and usage examples
 
 ### Task 3.2: Integrate Position into CLI Conversion Flow
 - [ ] **Red:** Write integration tests for CLI with position flag

@@ -2,16 +2,16 @@
 
 ## Phase 1: Core Position Configuration [checkpoint: ]
 
-### Task 1.1: Add Position Constants and Utility Functions
-- [ ] **Red:** Write tests for position constants and coordinate calculation
-  - [ ] Test that all four position constants exist (TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT)
-  - [ ] Test coordinate calculation function returns correct x:y values for each position
-  - [ ] Test default position is BOTTOM_RIGHT
-- [ ] **Green:** Implement position constants and coordinate calculation
-  - [ ] Add position constants to module
-  - [ ] Create `get_position_coordinates(position, margin)` function
-  - [ ] Return appropriate FFmpeg x:y expressions for each corner
-- [ ] **Refactor:** Clean up implementation if needed
+### Task 1.1: Add Position Constants and Utility Functions [ffc74e6]
+- [x] **Red:** Write tests for position constants and coordinate calculation
+  - [x] Test that all four position constants exist (TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT)
+  - [x] Test coordinate calculation function returns correct x:y values for each position
+  - [x] Test default position is BOTTOM_RIGHT
+- [x] **Green:** Implement position constants and coordinate calculation
+  - [x] Add position constants to module
+  - [x] Create `get_position_coordinates(position, margin)` function
+  - [x] Return appropriate FFmpeg x:y expressions for each corner
+- [x] **Refactor:** Clean up implementation if needed
 
 ### Task 1.2: Update FFmpeg drawtext Filter for Position
 - [ ] **Red:** Write tests for drawtext filter generation with position parameter

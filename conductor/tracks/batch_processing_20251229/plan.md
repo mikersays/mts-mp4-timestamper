@@ -41,10 +41,10 @@
 - [x] Display per-file progress during batch conversion
 - [x] Show batch summary at completion
 
-### Task 2.3: CLI error handling and exit codes
-- [ ] Return exit code 0 if all successful
-- [ ] Return exit code 1 if any failures
-- [ ] Display clear error messages for failed files
+### Task 2.3: CLI error handling and exit codes [4d86691]
+- [x] Return exit code 0 if all successful
+- [x] Return exit code 1 if any failures
+- [x] Display clear error messages for failed files
 
 ### Task 2.4: Phase 2 Completion
 - [ ] Run all tests and verify >80% coverage

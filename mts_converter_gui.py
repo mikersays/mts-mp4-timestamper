@@ -6,6 +6,7 @@ A simple Windows GUI for converting .MTS videos to .MP4 with timestamp overlay.
 Supports batch processing of multiple files with progress tracking.
 """
 
+import re
 import subprocess
 import sys
 import os
@@ -21,7 +22,7 @@ from ffmpeg_utils import (
     check_ffmpeg_available,
     get_subprocess_flags
 )
-from mts_converter import MetadataExtractionError, extract_avchd_timestamp
+from mts_converter import MetadataExtractionError, extract_avchd_timestamp, build_video_filter
 
 try:
     import tkinter as tk
@@ -60,10 +61,12 @@ class MTSConverterGUI:
 
         # Timestamp options
         self.position = tk.StringVar(value="bottom-right")
-        self.font_size = tk.IntVar(value=24)
+        self.font_size = tk.IntVar(value=32)
+        self.resolution = tk.StringVar(value="Original")
 
         # Progress tracking
         self.batch_progress_var = tk.DoubleVar(value=0)
+        self.file_progress_var = tk.DoubleVar(value=0)
 
         self.create_widgets()
         self.check_dependencies()
@@ -204,6 +207,17 @@ class MTSConverterGUI:
         )
         font_spin.grid(row=1, column=1, sticky="w", padx=5, pady=5)
 
+        # Resolution
+        ttk.Label(options_frame, text="Resolution:").grid(row=2, column=0, sticky="w", pady=5)
+        resolution_combo = ttk.Combobox(
+            options_frame,
+            textvariable=self.resolution,
+            values=["Original", "1080p (1920x1080)", "720p (1280x720)", "480p (854x480)"],
+            state="readonly",
+            width=20
+        )
+        resolution_combo.grid(row=2, column=1, sticky="w", padx=5, pady=5)
+
         # Progress frame
         progress_frame = ttk.LabelFrame(main_frame, text="Progress", padding="5")
         progress_frame.grid(row=5, column=0, columnspan=4, sticky="ew", pady=5)
@@ -234,17 +248,34 @@ class MTSConverterGUI:
         )
         self.batch_progress_bar.grid(row=1, column=0, columnspan=2, sticky="ew", pady=5)
 
+        # Per-file progress label
+        self.file_progress_label = ttk.Label(
+            progress_frame,
+            text="Current file: 0%",
+            font=("Segoe UI", 9)
+        )
+        self.file_progress_label.grid(row=2, column=0, sticky="w")
+
+        # Per-file progress bar
+        self.file_progress_bar = ttk.Progressbar(
+            progress_frame,
+            variable=self.file_progress_var,
+            maximum=100,
+            mode='determinate'
+        )
+        self.file_progress_bar.grid(row=3, column=0, columnspan=2, sticky="ew", pady=5)
+
         # Current file label
         self.current_file_label = ttk.Label(
             progress_frame,
             text="Ready",
             font=("Segoe UI", 9)
         )
-        self.current_file_label.grid(row=2, column=0, columnspan=2, sticky="w")
+        self.current_file_label.grid(row=4, column=0, columnspan=2, sticky="w")
 
         # Status label (for FFmpeg output)
         self.status_label = ttk.Label(progress_frame, text="", font=("Segoe UI", 9))
-        self.status_label.grid(row=3, column=0, columnspan=2, sticky="w", pady=2)
+        self.status_label.grid(row=5, column=0, columnspan=2, sticky="w", pady=2)
 
         # Button frame
         btn_frame = ttk.Frame(main_frame)
@@ -395,6 +426,82 @@ class MTSConverterGUI:
                 "Please ensure ffmpeg.exe and ffprobe.exe\n"
                 "are in the same folder as this application."
             )
+
+    def _get_resolution_value(self) -> str:
+        """Convert GUI resolution display value to internal resolution key.
+
+        Returns:
+            Resolution key ('original', '1080p', '720p', '480p').
+        """
+        display = self.resolution.get()
+        if display.startswith("1080p"):
+            return "1080p"
+        elif display.startswith("720p"):
+            return "720p"
+        elif display.startswith("480p"):
+            return "480p"
+        return "original"
+
+    def _get_video_duration(self, input_path: str) -> float:
+        """Get video duration in seconds using ffprobe.
+
+        Args:
+            input_path: Path to the video file.
+
+        Returns:
+            Duration in seconds, or 0.0 if duration cannot be determined.
+        """
+        ffprobe = self.ffprobe_path or get_ffprobe_path()
+        try:
+            result = subprocess.run(
+                [
+                    ffprobe,
+                    "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    input_path
+                ],
+                capture_output=True,
+                text=True,
+                creationflags=get_subprocess_flags()
+            )
+            return float(result.stdout.strip())
+        except (ValueError, subprocess.SubprocessError):
+            return 0.0
+
+    def _parse_ffmpeg_progress(self, line: str, total_duration: float) -> float:
+        """Parse FFmpeg output line and return progress percentage.
+
+        Args:
+            line: A line of FFmpeg stderr output.
+            total_duration: Total video duration in seconds.
+
+        Returns:
+            Progress percentage (0-100), or -1 if no progress info in line.
+        """
+        if total_duration <= 0:
+            return -1
+
+        # FFmpeg outputs: frame=  100 fps= 25 time=00:00:04.00 bitrate=...
+        match = re.search(r'time=(\d+):(\d+):(\d+\.?\d*)', line)
+        if match:
+            hours, minutes, seconds = match.groups()
+            current_time = int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+            return min((current_time / total_duration) * 100, 100.0)
+        return -1
+
+    def _update_file_progress(self, percentage: float):
+        """Thread-safe update of per-file progress bar.
+
+        Args:
+            percentage: Progress percentage (0-100).
+        """
+        self.root.after(0, lambda: self._set_file_progress(percentage))
+
+    def _set_file_progress(self, percentage: float):
+        """Update per-file progress UI elements (must be called from main thread)."""
+        self.file_progress_var.set(percentage)
+        self.file_progress_label.configure(text=f"Current file: {percentage:.0f}%")
 
     def get_video_creation_time(self, input_file: str) -> datetime:
         """Extract the creation/recording time from video metadata.
@@ -581,6 +688,12 @@ class MTSConverterGUI:
             True if conversion succeeded, False otherwise.
         """
         try:
+            # Reset per-file progress
+            self._update_file_progress(0)
+
+            # Get video duration for progress tracking
+            total_duration = self._get_video_duration(input_path)
+
             # Get filming time
             filming_time = self.get_video_creation_time(input_path)
             self.root.after(0, lambda: self.log(
@@ -609,11 +722,15 @@ class MTSConverterGUI:
                 f"{pos}"
             )
 
+            # Combine drawtext with optional resolution scaling
+            resolution = self._get_resolution_value()
+            video_filter = build_video_filter(drawtext_filter, resolution)
+
             ffmpeg = self.ffmpeg_path or get_ffmpeg_path()
             cmd = [
                 ffmpeg,
                 "-i", input_path,
-                "-vf", drawtext_filter,
+                "-vf", video_filter,
                 "-c:v", "libx264",
                 "-preset", "medium",
                 "-crf", "23",
@@ -634,11 +751,21 @@ class MTSConverterGUI:
 
             for line in process.stdout:
                 if "frame=" in line:
+                    # Update status label with FFmpeg output
                     self.root.after(0, lambda l=line: self.status_label.configure(
                         text=l.strip()[:60]
                     ))
+                    # Parse and update per-file progress
+                    progress = self._parse_ffmpeg_progress(line, total_duration)
+                    if progress >= 0:
+                        self._update_file_progress(progress)
 
             process.wait()
+
+            # Set progress to 100% on completion
+            if process.returncode == 0:
+                self._update_file_progress(100)
+
             return process.returncode == 0
 
         except MetadataExtractionError as e:

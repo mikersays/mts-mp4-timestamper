@@ -12,7 +12,7 @@ from glob import glob
 from pathlib import Path
 from typing import Callable, List, Optional
 
-from mts_converter import convert_video, DEFAULT_POSITION
+from mts_converter import convert_video, DEFAULT_POSITION, DEFAULT_RESOLUTION
 
 
 # Type alias for progress callback
@@ -43,6 +43,7 @@ class BatchConverter:
         progress_callback: Optional callback invoked after each file conversion.
         output_dir: Optional directory for output files.
         position: Timestamp overlay position.
+        resolution: Output resolution preset.
         results: List of BatchResult objects from conversions.
     """
 
@@ -50,7 +51,8 @@ class BatchConverter:
         self,
         progress_callback: Optional[BatchProgress] = None,
         output_dir: Optional[Path] = None,
-        position: Optional[str] = None
+        position: Optional[str] = None,
+        resolution: Optional[str] = None
     ):
         """Initialize BatchConverter.
 
@@ -60,10 +62,12 @@ class BatchConverter:
             output_dir: Optional directory for output files. If None,
                         output files are saved next to input files.
             position: Timestamp position (default: DEFAULT_POSITION).
+            resolution: Output resolution preset (default: DEFAULT_RESOLUTION).
         """
         self.progress_callback = progress_callback
         self.output_dir = output_dir
         self.position = position if position is not None else DEFAULT_POSITION
+        self.resolution = resolution if resolution is not None else DEFAULT_RESOLUTION
         self.results: List[BatchResult] = []
 
     def _get_output_path(self, input_file: Path) -> Path:
@@ -113,7 +117,8 @@ class BatchConverter:
                 success = convert_video(
                     str(input_file),
                     str(output_file),
-                    position=self.position
+                    position=self.position,
+                    resolution=self.resolution
                 )
 
                 if success:

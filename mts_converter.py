@@ -49,6 +49,37 @@ def _bcd_to_int(byte_val):
     return ((byte_val >> 4) * 10) + (byte_val & 0x0F)
 
 
+def debug_dpm_bytes(input_file, num_bytes=32):
+    """Dump hex bytes around DPM marker for debugging timestamp extraction.
+
+    Args:
+        input_file: Path to the MTS/AVCHD video file.
+        num_bytes: Number of bytes to dump after finding DPM marker.
+
+    Returns:
+        Tuple of (hex_string, offset) where hex_string is space-separated hex bytes
+        and offset is the file offset where DPM was found, or (None, None) if not found.
+    """
+    try:
+        with open(input_file, 'rb') as f:
+            data = f.read(65536)
+
+        dpm_marker = b'DPM'
+        idx = data.find(dpm_marker)
+
+        if idx < 0:
+            return None, None
+
+        # Get bytes including the DPM marker
+        end_idx = min(idx + num_bytes, len(data))
+        raw_bytes = data[idx:end_idx]
+        hex_str = ' '.join(f'{b:02X}' for b in raw_bytes)
+
+        return hex_str, idx
+    except (IOError, OSError):
+        return None, None
+
+
 def extract_avchd_timestamp(input_file):
     """Extract timestamp from AVCHD/MTS file using DPM marker in SEI data.
 
@@ -57,11 +88,11 @@ def extract_avchd_timestamp(input_file):
     'DPM' marker. The timestamp is BCD-encoded.
 
     DPM marker format (at offset after 'DPM'):
-        Byte 0: Month (BCD, e.g., 0x12 = December)
-        Bytes 1-2: Unknown/reserved
+        Bytes 0-2: Unknown/reserved
         Bytes 3-4: Year (BCD, e.g., 0x20 0x25 = 2025)
-        Bytes 5-6: Unknown (possibly frame/clip info)
-        Byte 7: Day (BCD, e.g., 0x19 = 19th)
+        Byte 5: Month (BCD, e.g., 0x09 = September)
+        Byte 6: Unknown
+        Byte 7: Day (BCD, e.g., 0x07 = 7th)
         Byte 8: Hour (BCD, e.g., 0x14 = 14:00)
         Byte 9: Minute (BCD, e.g., 0x32 = 32)
         Byte 10: Second (BCD, e.g., 0x35 = 35)
@@ -93,11 +124,11 @@ def extract_avchd_timestamp(input_file):
         ts_data = data[idx + 3:idx + 14]
 
         # Parse BCD-encoded timestamp
-        month = _bcd_to_int(ts_data[0])
         year_hi = _bcd_to_int(ts_data[3])  # Usually 20
         year_lo = _bcd_to_int(ts_data[4])  # e.g., 25 for 2025
         year = year_hi * 100 + year_lo
-        day = _bcd_to_int(ts_data[6])
+        month = _bcd_to_int(ts_data[5])
+        day = _bcd_to_int(ts_data[7])
         hour = _bcd_to_int(ts_data[8])
         minute = _bcd_to_int(ts_data[9])
         second = _bcd_to_int(ts_data[10])
@@ -129,6 +160,38 @@ POSITIONS = {
     'bottom-left': 'x=20:y=h-th-20',
     'bottom-right': 'x=w-tw-20:y=h-th-20',
 }
+
+# Resolution presets for output scaling
+DEFAULT_RESOLUTION = 'original'
+RESOLUTION_PRESETS = {
+    'original': None,
+    '1080p': (1920, 1080),
+    '720p': (1280, 720),
+    '480p': (854, 480),
+}
+
+
+def build_video_filter(drawtext_filter, resolution='original'):
+    """Build combined video filter with optional scaling.
+
+    Args:
+        drawtext_filter: The drawtext filter string for timestamp overlay.
+        resolution: Resolution preset name ('original', '1080p', '720p', '480p').
+
+    Returns:
+        Combined filter string with drawtext and optional scale filter.
+    """
+    if resolution == 'original' or resolution is None:
+        return drawtext_filter
+
+    dims = RESOLUTION_PRESETS.get(resolution)
+    if dims is None:
+        return drawtext_filter
+
+    width, height = dims
+    # Use -2 for height to auto-calculate while keeping even number (required for h264)
+    scale_filter = f"scale={width}:-2"
+    return f"{drawtext_filter},{scale_filter}"
 
 
 def get_position_coordinates(position, margin=20):
@@ -191,6 +254,8 @@ def parse_args(args):
         result.continue_on_error = True
         result.legacy_mode = True
         result.position = DEFAULT_POSITION
+        result.resolution = DEFAULT_RESOLUTION
+        result.debug_timestamp = False
         return result
 
     parser = argparse.ArgumentParser(
@@ -240,6 +305,21 @@ Examples:
         default=DEFAULT_POSITION,
         choices=['top-left', 'top-right', 'bottom-left', 'bottom-right'],
         help=f'Timestamp position (default: {DEFAULT_POSITION})'
+    )
+
+    parser.add_argument(
+        '-r', '--resolution',
+        dest='resolution',
+        default=DEFAULT_RESOLUTION,
+        choices=['original', '1080p', '720p', '480p'],
+        help=f'Output resolution preset (default: {DEFAULT_RESOLUTION})'
+    )
+
+    parser.add_argument(
+        '--debug-timestamp',
+        action='store_true',
+        dest='debug_timestamp',
+        help='Debug mode: dump DPM marker hex bytes for timestamp analysis'
     )
 
     parsed = parser.parse_args(args)
@@ -332,7 +412,7 @@ def get_video_creation_time(input_file):
         )
 
 
-def convert_video(input_file, output_file=None, font_size=24, position=None):
+def convert_video(input_file, output_file=None, font_size=32, position=None, resolution=None):
     """
     Convert MTS to MP4 with dynamic timestamp overlay.
 
@@ -342,9 +422,11 @@ def convert_video(input_file, output_file=None, font_size=24, position=None):
     Args:
         input_file: Path to the input MTS file.
         output_file: Optional path for the output MP4 file.
-        font_size: Font size for the timestamp text (default: 24).
+        font_size: Font size for the timestamp text (default: 32).
         position: Timestamp position. One of 'top-left', 'top-right',
                   'bottom-left', 'bottom-right'. Default is DEFAULT_POSITION.
+        resolution: Output resolution preset. One of 'original', '1080p',
+                    '720p', '480p'. Default is 'original' (no scaling).
 
     Returns:
         True if conversion succeeded, False otherwise.
@@ -390,12 +472,15 @@ def convert_video(input_file, output_file=None, font_size=24, position=None):
         f"{pos}"
     )
 
+    # Combine drawtext with optional resolution scaling
+    video_filter = build_video_filter(drawtext_filter, resolution)
+
     # FFmpeg command
     ffmpeg = FFMPEG_PATH or get_ffmpeg_path()
     cmd = [
         ffmpeg,
         "-i", str(input_path),
-        "-vf", drawtext_filter,
+        "-vf", video_filter,
         "-c:v", "libx264",
         "-preset", "medium",
         "-crf", "23",
@@ -456,6 +541,46 @@ def run_cli(args):
     if parsed is None:
         return (0, 0)
 
+    # Debug timestamp mode: dump DPM bytes for analysis
+    if parsed.debug_timestamp:
+        files = discover_files(parsed.input_paths)
+        if not files:
+            print("No MTS files found.")
+            return (0, 0)
+
+        for f in files:
+            print(f"\n{'='*60}")
+            print(f"File: {f.name}")
+            print(f"{'='*60}")
+
+            hex_bytes, offset = debug_dpm_bytes(str(f))
+            if hex_bytes is None:
+                print("DPM marker not found in file.")
+            else:
+                print(f"DPM marker found at offset: {offset}")
+                print(f"\nRaw bytes (starting at 'DPM'):")
+                print(hex_bytes)
+                print(f"\nByte positions after 'DPM' marker:")
+                print("  Offset: 0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 ...")
+                bytes_list = hex_bytes.split()
+                print(f"  Values: {' '.join(bytes_list[3:18])}")  # Skip 'D P M'
+                print(f"\nByte extraction mapping:")
+                print(f"  Year:   byte[3-4] = {bytes_list[6] if len(bytes_list) > 6 else '?'} {bytes_list[7] if len(bytes_list) > 7 else '?'}")
+                print(f"  Month:  byte[5]   = {bytes_list[8] if len(bytes_list) > 8 else '?'}")
+                print(f"  Day:    byte[7]   = {bytes_list[10] if len(bytes_list) > 10 else '?'}")
+                print(f"  Hour:   byte[8]   = {bytes_list[11] if len(bytes_list) > 11 else '?'}")
+                print(f"  Minute: byte[9]   = {bytes_list[12] if len(bytes_list) > 12 else '?'}")
+                print(f"  Second: byte[10]  = {bytes_list[13] if len(bytes_list) > 13 else '?'}")
+
+                # Try current extraction
+                ts = extract_avchd_timestamp(str(f))
+                if ts:
+                    print(f"\nExtracted timestamp: {ts.strftime('%Y-%m-%d %H:%M:%S')}")
+                else:
+                    print(f"\nExtracted timestamp: FAILED")
+
+        return (len(files), 0)
+
     # Check for FFmpeg
     if not check_ffmpeg():
         print("\nError: FFmpeg is not installed or not in PATH.")
@@ -466,7 +591,8 @@ def run_cli(args):
         success = convert_video(
             parsed.input_paths[0],
             parsed.output_file,
-            position=parsed.position
+            position=parsed.position,
+            resolution=parsed.resolution
         )
         return (1, 0) if success else (0, 1)
 
@@ -481,12 +607,13 @@ def run_cli(args):
     def progress_callback(current, total, current_file):
         print(f"Converting {current}/{total}: {current_file.name}")
 
-    # Create batch converter with output directory and position if specified
+    # Create batch converter with output directory, position and resolution if specified
     output_dir = Path(parsed.output_dir) if parsed.output_dir else None
     converter = BatchConverter(
         progress_callback=progress_callback,
         output_dir=output_dir,
-        position=parsed.position
+        position=parsed.position,
+        resolution=parsed.resolution
     )
 
     # Run batch conversion

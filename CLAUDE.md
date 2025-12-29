@@ -9,7 +9,26 @@ MTS to MP4 video converter that adds dynamic timestamp overlays showing the orig
 ## Requirements
 
 - Python 3.6+
-- FFmpeg (must be in system PATH)
+- FFmpeg (must be in system PATH or bundled)
+
+## Testing
+
+```bash
+# Run all tests
+pytest
+
+# Run specific test file
+pytest test_position.py
+
+# Run specific test class or method
+pytest test_position.py::TestPositionConstants
+pytest test_position.py::TestPositionConstants::test_positions_is_dictionary
+
+# Run with verbose output
+pytest -v
+```
+
+Tests use pytest with unittest.mock for mocking subprocess calls to FFmpeg/FFprobe.
 
 ## Running the Application
 
@@ -40,9 +59,16 @@ python mts_converter_gui.py
 - `ffmpeg_utils.py` - FFmpeg path resolution (bundled/system)
 
 ### Core Conversion Flow
-1. Extract filming timestamp via `ffprobe` metadata (raises `MetadataExtractionError` if unavailable)
+1. Extract filming timestamp (raises `MetadataExtractionError` if unavailable)
 2. Build FFmpeg `drawtext` filter using `pts:localtime` for dynamic time display
 3. Transcode to H.264/AAC MP4 with `+faststart` flag
+
+### Timestamp Extraction Priority
+The converter uses a two-method approach in `mts_converter.py`:
+1. **Primary**: `extract_avchd_timestamp()` - Reads AVCHD DPM marker from raw file bytes (SEI user data with BCD-encoded timestamp)
+2. **Fallback**: `extract_metadata_timestamp()` - Uses `ffprobe` to read metadata tags (creation_time, etc.)
+
+No fallback to filesystem timestamps - accuracy is prioritized over availability.
 
 ### Timestamp Position
 The timestamp overlay position can be configured via CLI (`-p/--position`) or GUI dropdown:

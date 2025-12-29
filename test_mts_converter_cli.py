@@ -223,6 +223,101 @@ class TestCLIPositionArgument:
         assert hasattr(args, 'position')
 
 
+class TestCLIPositionIntegration:
+    """Tests for CLI position integration with conversion."""
+
+    def test_run_cli_passes_position_to_convert_video_legacy(self, tmp_path, mocker):
+        """run_cli should pass position to convert_video in legacy mode."""
+        from mts_converter import run_cli
+
+        mts_file = tmp_path / "video.mts"
+        mts_file.touch()
+
+        mock_convert = mocker.patch('mts_converter.convert_video', return_value=True)
+        mocker.patch('mts_converter.check_ffmpeg', return_value=True)
+
+        run_cli([str(mts_file), str(tmp_path / "output.mp4")])
+
+        # Should call convert_video with position parameter (defaulted)
+        call_kwargs = mock_convert.call_args
+        # Position should be passed as keyword argument or positional
+        assert 'position' in str(call_kwargs) or mock_convert.call_args[1].get('position') == 'bottom-right'
+
+    def test_run_cli_passes_explicit_position_batch_single_file(self, tmp_path, mocker):
+        """run_cli should pass explicit position for single file in batch mode."""
+        from mts_converter import run_cli
+
+        mts_file = tmp_path / "video.mts"
+        mts_file.touch()
+
+        # Must mock in batch_converter module since that's where it's imported
+        mock_convert = mocker.patch('batch_converter.convert_video', return_value=True)
+        mocker.patch('mts_converter.check_ffmpeg', return_value=True)
+        mocker.patch('batch_converter.discover_files', return_value=[mts_file])
+
+        run_cli([str(mts_file), '--position', 'top-left'])
+
+        mock_convert.assert_called()
+        # Verify position was passed
+        call_kwargs = mock_convert.call_args[1]
+        assert call_kwargs.get('position') == 'top-left'
+
+    def test_run_cli_passes_position_to_batch_converter(self, tmp_path, mocker):
+        """run_cli should pass position to BatchConverter."""
+        from mts_converter import run_cli
+
+        mts1 = tmp_path / "video1.mts"
+        mts2 = tmp_path / "video2.mts"
+        mts1.touch()
+        mts2.touch()
+
+        mocker.patch('batch_converter.discover_files', return_value=[mts1, mts2])
+        mocker.patch('mts_converter.check_ffmpeg', return_value=True)
+
+        mock_batch = mocker.patch('batch_converter.BatchConverter')
+        mock_instance = mock_batch.return_value
+        mock_instance.convert_batch.return_value = []
+
+        run_cli([str(mts1), str(mts2), '--position', 'top-right'])
+
+        # Check that BatchConverter was created with position
+        call_kwargs = mock_batch.call_args[1]
+        assert call_kwargs.get('position') == 'top-right'
+
+    def test_batch_converter_passes_position_to_convert_video(self, tmp_path, mocker):
+        """BatchConverter should pass position to convert_video for each file."""
+        from batch_converter import BatchConverter
+
+        mts_file = tmp_path / "video.mts"
+        mts_file.touch()
+
+        mock_convert = mocker.patch('batch_converter.convert_video', return_value=True)
+
+        converter = BatchConverter(position='top-left')
+        converter.convert_batch([mts_file])
+
+        # convert_video should be called with position='top-left'
+        call_kwargs = mock_convert.call_args[1] if mock_convert.call_args[1] else {}
+        assert call_kwargs.get('position') == 'top-left'
+
+    def test_batch_converter_uses_default_position_when_not_specified(self, tmp_path, mocker):
+        """BatchConverter should use default position when not specified."""
+        from batch_converter import BatchConverter
+        from mts_converter import DEFAULT_POSITION
+
+        mts_file = tmp_path / "video.mts"
+        mts_file.touch()
+
+        mock_convert = mocker.patch('batch_converter.convert_video', return_value=True)
+
+        converter = BatchConverter()  # No position specified
+        converter.convert_batch([mts_file])
+
+        # convert_video should be called with default position
+        call_kwargs = mock_convert.call_args[1] if mock_convert.call_args[1] else {}
+        assert call_kwargs.get('position') == DEFAULT_POSITION
+
+
 class TestCLIBackwardCompatibility:
     """Tests for backward compatibility with existing CLI usage."""
 

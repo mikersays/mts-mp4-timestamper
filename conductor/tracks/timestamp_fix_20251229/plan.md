@@ -70,13 +70,13 @@
 - [x] **Refactor:** Update help text and usage examples
 
 ### Task 3.2: Integrate Position into CLI Conversion Flow
-- [ ] **Red:** Write integration tests for CLI with position flag
-  - [ ] Test single file conversion with explicit position
-  - [ ] Test batch conversion applies position to all files
-- [ ] **Green:** Wire position parameter through CLI conversion
-  - [ ] Update convert_video() calls to include position
-  - [ ] Ensure batch processing passes position correctly
-- [ ] **Refactor:** Clean up any redundant code
+- [x] **Red:** Write integration tests for CLI with position flag
+  - [x] Test single file conversion with explicit position
+  - [x] Test batch conversion applies position to all files
+- [x] **Green:** Wire position parameter through CLI conversion
+  - [x] Update convert_video() calls to include position
+  - [x] Ensure batch processing passes position correctly
+- [x] **Refactor:** Clean up any redundant code
 
 ### Task 3.3: Conductor - Phase 3 Completion Verification
 - [ ] Execute Phase Completion Verification Protocol (see workflow.md)

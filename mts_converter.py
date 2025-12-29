@@ -368,7 +368,11 @@ def run_cli(args):
 
     # Legacy mode: single file with explicit output
     if parsed.legacy_mode:
-        success = convert_video(parsed.input_paths[0], parsed.output_file)
+        success = convert_video(
+            parsed.input_paths[0],
+            parsed.output_file,
+            position=parsed.position
+        )
         return (1, 0) if success else (0, 1)
 
     # Batch mode: discover files and use BatchConverter
@@ -382,11 +386,12 @@ def run_cli(args):
     def progress_callback(current, total, current_file):
         print(f"Converting {current}/{total}: {current_file.name}")
 
-    # Create batch converter with output directory if specified
+    # Create batch converter with output directory and position if specified
     output_dir = Path(parsed.output_dir) if parsed.output_dir else None
     converter = BatchConverter(
         progress_callback=progress_callback,
-        output_dir=output_dir
+        output_dir=output_dir,
+        position=parsed.position
     )
 
     # Run batch conversion

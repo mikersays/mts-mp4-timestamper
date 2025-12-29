@@ -259,7 +259,7 @@ class TestBatchConverterMetadataFailure:
         bad_file.touch()
 
         # Mock convert_video to fail for bad_file
-        def mock_convert(input_file, output_file=None):
+        def mock_convert(input_file, output_file=None, **kwargs):
             if 'bad' in input_file:
                 raise MetadataExtractionError("No metadata in bad.mts")
             return True
@@ -292,7 +292,7 @@ class TestBatchConverterMetadataFailure:
 
         # Mock convert_video: first and third succeed, second fails
         call_count = [0]
-        def mock_convert(input_file, output_file=None):
+        def mock_convert(input_file, output_file=None, **kwargs):
             call_count[0] += 1
             if 'second' in input_file:
                 raise MetadataExtractionError("No metadata")

@@ -9,14 +9,6 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Build artifacts
-build/
-dist/
-
-# FFmpeg binaries
-ffmpeg.exe
-ffprobe.exe
-ffmpeg/
 
 # IDE
 .vscode/

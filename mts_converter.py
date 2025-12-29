@@ -260,7 +260,14 @@ def convert_video(input_file, output_file=None, font_size=24, position=None):
     output_path = Path(output_file)
 
     # Get the original filming time
-    filming_time = get_video_creation_time(input_file)
+    try:
+        filming_time = get_video_creation_time(input_file)
+    except MetadataExtractionError as e:
+        print(f"\nError: {e}")
+        print("The recording timestamp could not be determined from the video metadata.")
+        print("Possible causes: corrupted file, missing metadata, or non-MTS source file.")
+        return False
+
     print(f"Detected filming time: {filming_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
     # Get position coordinates using the utility function

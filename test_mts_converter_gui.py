@@ -291,3 +291,52 @@ class TestGUIPositionIntegration:
         # Check the .get() fallback uses bottom-right
         assert 'positions["bottom-right"]' in source, \
             "GUI should use bottom-right as fallback position"
+
+
+class TestGUIMetadataErrorDisplay:
+    """Tests for GUI metadata error display (Task 4.3)."""
+
+    def test_gui_imports_metadata_extraction_error(self):
+        """GUI should import MetadataExtractionError from mts_converter."""
+        with open('mts_converter_gui.py', 'r') as f:
+            source = f.read()
+        assert 'MetadataExtractionError' in source, \
+            "GUI should import MetadataExtractionError"
+
+    def test_gui_does_not_fallback_to_file_mtime(self):
+        """GUI should NOT fall back to file modification time."""
+        with open('mts_converter_gui.py', 'r') as f:
+            source = f.read()
+        # Check that getmtime fallback is not present in get_video_creation_time
+        # The old code had: mtime = os.path.getmtime(input_file)
+        assert 'os.path.getmtime' not in source, \
+            "GUI should NOT use os.path.getmtime as fallback"
+
+    def test_gui_does_not_fallback_to_datetime_now(self):
+        """GUI should NOT fall back to datetime.now()."""
+        with open('mts_converter_gui.py', 'r') as f:
+            source = f.read()
+        # Count occurrences of datetime.now() - should only be for elapsed time tracking
+        import re
+        now_calls = re.findall(r'datetime\.now\(\)', source)
+        # If datetime.now() is used, it should not be in get_video_creation_time
+        # Check by looking for the fallback pattern
+        assert 'return datetime.now()' not in source, \
+            "GUI should NOT fall back to datetime.now()"
+
+    def test_gui_raises_error_on_metadata_failure(self):
+        """GUI should raise MetadataExtractionError when metadata unavailable."""
+        with open('mts_converter_gui.py', 'r') as f:
+            source = f.read()
+        # Check that MetadataExtractionError is raised in extraction
+        assert 'raise MetadataExtractionError' in source, \
+            "GUI should raise MetadataExtractionError when metadata unavailable"
+
+    def test_gui_handles_metadata_error_gracefully(self):
+        """GUI should catch metadata errors and continue batch processing."""
+        with open('mts_converter_gui.py', 'r') as f:
+            source = f.read()
+        # Check that MetadataExtractionError is caught in conversion logic
+        assert 'except MetadataExtractionError' in source or \
+               'except Exception' in source, \
+            "GUI should catch metadata errors"

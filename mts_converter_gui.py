@@ -21,6 +21,7 @@ from ffmpeg_utils import (
     check_ffmpeg_available,
     get_subprocess_flags
 )
+from mts_converter import MetadataExtractionError
 
 try:
     import tkinter as tk
@@ -402,7 +403,12 @@ class MTSConverterGUI:
             input_file: Path to the input video file.
 
         Returns:
-            The creation datetime, or file mtime if metadata unavailable.
+            datetime object representing the recording timestamp.
+
+        Raises:
+            MetadataExtractionError: If the timestamp cannot be extracted from
+                video metadata. This error is raised instead of falling back to
+                file modification time to ensure timestamp accuracy.
         """
         ffprobe = self.ffprobe_path or get_ffprobe_path()
         try:
@@ -435,15 +441,20 @@ class MTSConverterGUI:
                             return datetime.strptime(time_str, fmt)
                         except ValueError:
                             continue
-        except Exception as e:
-            self.log(f"Warning: Could not extract metadata: {e}")
 
-        # Fallback to file modification time
-        try:
-            mtime = os.path.getmtime(input_file)
-            return datetime.fromtimestamp(mtime)
-        except Exception:
-            return datetime.now()
+            # No valid timestamp found in metadata
+            raise MetadataExtractionError(
+                f"Could not extract recording timestamp from metadata in '{input_file}'. "
+                "The file may be corrupted, missing metadata, or not an MTS video file."
+            )
+
+        except MetadataExtractionError:
+            # Re-raise our own exception
+            raise
+        except Exception as e:
+            raise MetadataExtractionError(
+                f"Failed to extract recording timestamp from '{input_file}': {e}"
+            )
 
     def request_cancel(self):
         """Request cancellation of the current batch operation."""
@@ -620,6 +631,9 @@ class MTSConverterGUI:
             process.wait()
             return process.returncode == 0
 
+        except MetadataExtractionError as e:
+            self.root.after(0, lambda: self.log(f"Metadata Error: {e}"))
+            raise  # Re-raise to be caught by batch handler
         except Exception as e:
             self.root.after(0, lambda: self.log(f"Error: {e}"))
             return False

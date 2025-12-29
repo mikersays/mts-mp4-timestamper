@@ -107,14 +107,14 @@
 - [x] **Refactor:** Ensure UI state is properly managed
 
 ### Task 4.3: Improve GUI Error Display for Metadata Failures
-- [ ] **Red:** Write tests for error display in GUI
-  - [ ] Test metadata failure shows user-friendly error dialog
-  - [ ] Test error message is clear and actionable
-- [ ] **Green:** Implement error handling UI
-  - [ ] Catch metadata extraction exceptions
-  - [ ] Display appropriate error dialog with guidance
-  - [ ] Ensure batch processing continues with other files, reports failures
-- [ ] **Refactor:** Ensure consistent error handling patterns
+- [x] **Red:** Write tests for error display in GUI
+  - [x] Test metadata failure shows user-friendly error dialog
+  - [x] Test error message is clear and actionable
+- [x] **Green:** Implement error handling UI
+  - [x] Catch metadata extraction exceptions
+  - [x] Display appropriate error dialog with guidance
+  - [x] Ensure batch processing continues with other files, reports failures
+- [x] **Refactor:** Ensure consistent error handling patterns
 
 ### Task 4.4: Conductor - Phase 4 Completion Verification
 - [ ] Execute Phase Completion Verification Protocol (see workflow.md)

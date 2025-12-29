@@ -21,15 +21,29 @@ MTS_Converter/
 
 **GUI Version (Recommended):**
 1. Double-click `MTS_Converter.exe`
-2. Click "Browse" to select your .MTS file
+2. Click "Add Files" to select one or more .MTS files, or "Add Folder" to add all MTS files from a directory
 3. Choose timestamp position and font size
-4. Click "Convert Video"
-5. The MP4 file will be saved next to the original
+4. Click "Convert"
+5. Monitor progress with the batch progress bar and file counter
+6. Review the completion summary when done
 
 **Command Line Version:**
 ```
+# Single file
 MTS_Converter_CLI.exe "C:\Videos\recording.MTS"
 MTS_Converter_CLI.exe "C:\Videos\recording.MTS" "C:\Output\video.mp4"
+
+# Multiple files
+MTS_Converter_CLI.exe "C:\Videos\file1.MTS" "C:\Videos\file2.MTS" "C:\Videos\file3.MTS"
+
+# All MTS files in a directory
+MTS_Converter_CLI.exe "C:\Videos\"
+
+# With output directory
+MTS_Converter_CLI.exe "C:\Videos\" --output-dir "C:\Output\"
+
+# Continue on errors (default behavior)
+MTS_Converter_CLI.exe "C:\Videos\" --continue-on-error
 ```
 
 ### Timestamp Format
@@ -52,8 +66,13 @@ As the video plays, the minutes increment to show the actual time when each part
 ### Running from Source
 
 ```bash
-# Command-line version
+# Command-line version (single file)
 python mts_converter.py input.mts [output.mp4]
+
+# Command-line version (batch)
+python mts_converter.py file1.mts file2.mts file3.mts
+python mts_converter.py ./videos/                    # All MTS in directory
+python mts_converter.py *.mts --output-dir ./output/
 
 # GUI version
 python mts_converter_gui.py
@@ -68,6 +87,7 @@ convert.bat <file.mts>   # Drag-and-drop conversion
 ```
 ├── mts_converter.py       # CLI converter
 ├── mts_converter_gui.py   # GUI converter (tkinter)
+├── batch_converter.py     # Batch processing module
 ├── ffmpeg_utils.py        # FFmpeg path resolution (bundled/system)
 ├── convert.bat            # Windows drag-and-drop launcher
 ├── convert_gui.bat        # Windows GUI launcher
@@ -171,6 +191,21 @@ powershell Compress-Archive -Path MTS_Converter -DestinationPath MTS_Converter.z
 - The tool reads the filming time from video metadata
 - If metadata is missing, it falls back to the file's modification date
 - MTS files from camcorders typically have accurate metadata
+
+### Batch conversion issues
+
+**Some files failed but others succeeded:**
+- By default, batch conversion continues even if individual files fail
+- Check the completion summary for specific error messages
+- Use "Retry Failed" in GUI or re-run with just the failed files
+
+**Output files have same name:**
+- When using `--output-dir`, files with the same name get a numeric suffix (e.g., `video_1.mp4`, `video_2.mp4`)
+- To avoid this, ensure source files have unique names
+
+**Cancellation doesn't stop immediately:**
+- Cancel waits for the current file to finish to avoid corrupted output
+- The remaining files in the queue will be skipped
 
 ---
 

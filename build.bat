@@ -1,5 +1,5 @@
 @echo off
-REM Build script for MTS to MP4 Converter standalone package
+REM Build script for MTS to MP4 Converter standalone package (Single-file mode)
 REM
 REM Prerequisites:
 REM   1. Python 3.6+ installed
@@ -7,13 +7,11 @@ REM   2. pip install pyinstaller
 REM   3. Download FFmpeg from https://www.gyan.dev/ffmpeg/builds/
 REM      (Get ffmpeg-release-essentials.zip)
 REM
-REM This script will:
-REM   1. Build the executable using PyInstaller
-REM   2. Copy FFmpeg binaries to the dist folder
-REM   3. Create a ready-to-distribute package
+REM This script will build single-file executables with FFmpeg bundled inside.
 
 echo ============================================
 echo   MTS to MP4 Converter - Build Script
+echo   (Single-file mode)
 echo ============================================
 echo.
 
@@ -26,27 +24,30 @@ if %errorlevel% neq 0 (
 )
 
 REM Check for FFmpeg files
-if not exist "ffmpeg\ffmpeg.exe" (
-    if not exist "ffmpeg.exe" (
-        echo.
-        echo WARNING: ffmpeg.exe not found!
-        echo.
-        echo Please download FFmpeg and place the files:
-        echo   - ffmpeg.exe
-        echo   - ffprobe.exe
-        echo.
-        echo Either in this directory or in a 'ffmpeg' subdirectory.
-        echo.
-        echo Download from: https://www.gyan.dev/ffmpeg/builds/
-        echo Get: ffmpeg-release-essentials.zip
-        echo Extract ffmpeg.exe and ffprobe.exe from the bin folder.
-        echo.
-        pause
-        exit /b 1
-    )
+set FFMPEG_FOUND=0
+if exist "ffmpeg.exe" set FFMPEG_FOUND=1
+if exist "ffmpeg\ffmpeg.exe" set FFMPEG_FOUND=1
+
+if %FFMPEG_FOUND%==0 (
+    echo.
+    echo WARNING: ffmpeg.exe not found!
+    echo.
+    echo Please download FFmpeg and place the files:
+    echo   - ffmpeg.exe
+    echo   - ffprobe.exe
+    echo.
+    echo Either in this directory or in a 'ffmpeg' subdirectory.
+    echo.
+    echo Download from: https://www.gyan.dev/ffmpeg/builds/
+    echo Get: ffmpeg-release-essentials.zip
+    echo Extract ffmpeg.exe and ffprobe.exe from the bin folder.
+    echo.
+    pause
+    exit /b 1
 )
 
-echo Building executable with PyInstaller...
+echo Building single-file executables with PyInstaller...
+echo (This may take a few minutes - FFmpeg binaries are being bundled)
 echo.
 
 pyinstaller --clean mts_converter.spec
@@ -58,28 +59,19 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo Copying FFmpeg binaries to dist folder...
-
-REM Copy FFmpeg from ffmpeg subfolder or current directory
-if exist "ffmpeg\ffmpeg.exe" (
-    copy /Y "ffmpeg\ffmpeg.exe" "dist\MTS_Converter\"
-    copy /Y "ffmpeg\ffprobe.exe" "dist\MTS_Converter\"
-) else (
-    copy /Y "ffmpeg.exe" "dist\MTS_Converter\"
-    copy /Y "ffprobe.exe" "dist\MTS_Converter\"
-)
-
-echo.
 echo ============================================
 echo   BUILD COMPLETE!
 echo ============================================
 echo.
-echo Standalone package is in: dist\MTS_Converter\
+echo Single-file executables are in: dist\
 echo.
-echo Contents:
-dir /b dist\MTS_Converter\
+echo Output files:
+dir /b dist\*.exe
 echo.
-echo You can now zip the dist\MTS_Converter folder
-echo and distribute it to your client.
+echo You can now share these .exe files directly!
+echo Each file is fully standalone with FFmpeg bundled inside.
+echo.
+echo NOTE: First startup may be slightly slower as the exe
+echo       extracts bundled files to a temp directory.
 echo.
 pause

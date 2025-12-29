@@ -14,7 +14,9 @@ def get_base_path():
     """Get the base path for bundled files (works with PyInstaller)."""
     if getattr(sys, 'frozen', False):
         # Running as compiled executable
-        return os.path.dirname(sys.executable)
+        # For onefile mode, _MEIPASS points to temp extraction directory
+        # For onefolder mode, use executable directory
+        return getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
     else:
         # Running as script
         return os.path.dirname(os.path.abspath(__file__))

@@ -1,28 +1,34 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller spec file for MTS to MP4 Converter
+PyInstaller spec file for MTS to MP4 Converter (Single-file mode)
 
 Build command:
     pyinstaller mts_converter.spec
 
-This creates a standalone executable that looks for ffmpeg.exe and ffprobe.exe
-in the same directory as the executable.
+This creates standalone single-file executables with ffmpeg bundled inside.
 """
 
-import sys
+import os
 from pathlib import Path
 
 block_cipher = None
 
-# Determine which script to build (GUI by default for Windows)
-gui_script = 'mts_converter_gui.py'
-cli_script = 'mts_converter.py'
+# Find FFmpeg binaries (check current dir, then ffmpeg subdir)
+ffmpeg_files = []
+for exe in ['ffmpeg.exe', 'ffprobe.exe']:
+    if os.path.exists(exe):
+        ffmpeg_files.append((exe, '.'))
+    elif os.path.exists(os.path.join('ffmpeg', exe)):
+        ffmpeg_files.append((os.path.join('ffmpeg', exe), '.'))
 
-# Build GUI version
+if not ffmpeg_files:
+    print("WARNING: ffmpeg.exe/ffprobe.exe not found - they won't be bundled!")
+
+# GUI version (single file)
 gui_a = Analysis(
-    [gui_script],
+    ['mts_converter_gui.py'],
     pathex=[],
-    binaries=[],
+    binaries=ffmpeg_files,
     datas=[],
     hiddenimports=[],
     hookspath=[],
@@ -40,13 +46,17 @@ gui_pyz = PYZ(gui_a.pure, gui_a.zipped_data, cipher=block_cipher)
 gui_exe = EXE(
     gui_pyz,
     gui_a.scripts,
+    gui_a.binaries,
+    gui_a.zipfiles,
+    gui_a.datas,
     [],
-    exclude_binaries=True,
     name='MTS_Converter',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
     console=False,  # No console window for GUI
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -56,11 +66,11 @@ gui_exe = EXE(
     icon=None,  # Add icon path here if you have one: icon='icon.ico'
 )
 
-# Build CLI version
+# CLI version (single file)
 cli_a = Analysis(
-    [cli_script],
+    ['mts_converter.py'],
     pathex=[],
-    binaries=[],
+    binaries=ffmpeg_files,
     datas=[],
     hiddenimports=[],
     hookspath=[],
@@ -78,33 +88,21 @@ cli_pyz = PYZ(cli_a.pure, cli_a.zipped_data, cipher=block_cipher)
 cli_exe = EXE(
     cli_pyz,
     cli_a.scripts,
+    cli_a.binaries,
+    cli_a.zipfiles,
+    cli_a.datas,
     [],
-    exclude_binaries=True,
     name='MTS_Converter_CLI',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
     console=True,  # Console window for CLI
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-)
-
-# Collect into single dist folder
-coll = COLLECT(
-    gui_exe,
-    gui_a.binaries,
-    gui_a.zipfiles,
-    gui_a.datas,
-    cli_exe,
-    cli_a.binaries,
-    cli_a.zipfiles,
-    cli_a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='MTS_Converter',
 )

@@ -13,14 +13,14 @@
   - [x] Return appropriate FFmpeg x:y expressions for each corner
 - [x] **Refactor:** Clean up implementation if needed
 
-### Task 1.2: Update FFmpeg drawtext Filter for Position
-- [ ] **Red:** Write tests for drawtext filter generation with position parameter
-  - [ ] Test filter string contains correct x:y coordinates for each position
-  - [ ] Test default position produces bottom-right coordinates
-- [ ] **Green:** Modify drawtext filter builder to accept position parameter
-  - [ ] Update filter generation function signature
-  - [ ] Integrate position coordinates into filter string
-- [ ] **Refactor:** Ensure backward compatibility with existing calls
+### Task 1.2: Update FFmpeg drawtext Filter for Position [309af1b]
+- [x] **Red:** Write tests for drawtext filter generation with position parameter
+  - [x] Test filter string contains correct x:y coordinates for each position
+  - [x] Test default position produces bottom-right coordinates
+- [x] **Green:** Modify drawtext filter builder to accept position parameter
+  - [x] Update filter generation function signature
+  - [x] Integrate position coordinates into filter string
+- [x] **Refactor:** Ensure backward compatibility with existing calls
 
 ### Task 1.3: Conductor - Phase 1 Completion Verification
 - [ ] Execute Phase Completion Verification Protocol (see workflow.md)

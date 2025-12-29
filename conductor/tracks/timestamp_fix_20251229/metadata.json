@@ -1,0 +1,8 @@
+{
+  "track_id": "timestamp_fix_20251229",
+  "type": "fix",
+  "status": "new",
+  "created_at": "2025-12-29T12:00:00Z",
+  "updated_at": "2025-12-29T12:00:00Z",
+  "description": "Fix timestamp to use footage recording time and change default position to bottom-right"
+}

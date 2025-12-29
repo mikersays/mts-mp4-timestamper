@@ -97,7 +97,7 @@
 - [x] Add batch processing to architecture section
 - [x] Document new module structure
 
-### Task 4.3: Final testing and polish
+### Task 4.3: Final testing and polish [f057623]
 - [x] End-to-end testing with real MTS files
 - [x] Performance testing with large batches
 - [x] UI polish and edge case handling

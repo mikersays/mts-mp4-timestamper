@@ -24,9 +24,9 @@
 - [x] Handle filename conflicts with numeric suffix
 
 ### Task 1.5: Phase 1 Completion
-- [ ] Run all tests and verify >80% coverage
-- [ ] Manual verification of batch module
-- [ ] Phase checkpoint
+- [x] Run all tests and verify >80% coverage
+- [x] Manual verification of batch module
+- [x] Phase checkpoint
 
 ## Phase 2: CLI Integration
 

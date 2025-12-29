@@ -40,16 +40,16 @@
   - [x] Remove fallback to file modification time
 - [x] **Refactor:** Consolidate metadata extraction logic
 
-### Task 2.2: Implement Strict Error Handling for Missing Metadata
-- [ ] **Red:** Write tests for error handling behavior
-  - [ ] Test conversion fails when metadata timestamp unavailable
-  - [ ] Test appropriate error message is returned
-  - [ ] Test batch processing handles individual metadata failures correctly
-- [ ] **Green:** Implement strict failure mode
-  - [ ] Raise exception when metadata timestamp cannot be extracted
-  - [ ] Create user-friendly error message explaining the issue
-  - [ ] Ensure batch converter reports individual failures properly
-- [ ] **Refactor:** Ensure error messages are consistent across CLI and GUI
+### Task 2.2: Implement Strict Error Handling for Missing Metadata [40c2935]
+- [x] **Red:** Write tests for error handling behavior
+  - [x] Test conversion fails when metadata timestamp unavailable
+  - [x] Test appropriate error message is returned
+  - [x] Test batch processing handles individual metadata failures correctly
+- [x] **Green:** Implement strict failure mode
+  - [x] Raise exception when metadata timestamp cannot be extracted
+  - [x] Create user-friendly error message explaining the issue
+  - [x] Ensure batch converter reports individual failures properly
+- [x] **Refactor:** Ensure error messages are consistent across CLI and GUI
 
 ### Task 2.3: Conductor - Phase 2 Completion Verification
 - [ ] Execute Phase Completion Verification Protocol (see workflow.md)

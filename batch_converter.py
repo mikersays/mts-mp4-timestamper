@@ -8,6 +8,7 @@ BatchProgress callback type for progress updates.
 """
 
 from dataclasses import dataclass
+from glob import glob
 from pathlib import Path
 from typing import Callable, List, Optional
 
@@ -62,3 +63,49 @@ class BatchConverter:
         """
         # Implementation will be added in Task 1.3
         return self.results
+
+
+def discover_files(paths: List[str]) -> List[Path]:
+    """Discover MTS files from a list of paths, directories, or glob patterns.
+
+    Args:
+        paths: List of file paths, directory paths, or glob patterns.
+
+    Returns:
+        List of Path objects pointing to existing MTS files.
+        Files are deduplicated and only include .mts/.MTS files.
+    """
+    discovered: set[Path] = set()
+
+    for path_str in paths:
+        path = Path(path_str)
+
+        if path.is_file():
+            # Direct file path
+            if _is_mts_file(path):
+                discovered.add(path.resolve())
+        elif path.is_dir():
+            # Directory - find all MTS files within
+            for item in path.iterdir():
+                if item.is_file() and _is_mts_file(item):
+                    discovered.add(item.resolve())
+        else:
+            # Try as glob pattern
+            for match in glob(path_str):
+                match_path = Path(match)
+                if match_path.is_file() and _is_mts_file(match_path):
+                    discovered.add(match_path.resolve())
+
+    return list(discovered)
+
+
+def _is_mts_file(path: Path) -> bool:
+    """Check if a path is an MTS file (case-insensitive extension).
+
+    Args:
+        path: Path to check.
+
+    Returns:
+        True if the file has a .mts extension (any case), False otherwise.
+    """
+    return path.suffix.lower() == '.mts'

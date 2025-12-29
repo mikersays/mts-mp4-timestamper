@@ -104,3 +104,131 @@ class TestBatchConverter:
         converter = BatchConverter()
         assert hasattr(converter, 'results')
         assert isinstance(converter.results, list)
+
+
+class TestDiscoverFiles:
+    """Tests for discover_files function."""
+
+    def test_discover_files_exists(self):
+        """discover_files function should exist."""
+        from batch_converter import discover_files
+
+        assert discover_files is not None
+        assert callable(discover_files)
+
+    def test_discover_files_single_file(self, tmp_path):
+        """discover_files should return a single MTS file when given its path."""
+        from batch_converter import discover_files
+
+        # Create a test MTS file
+        mts_file = tmp_path / "video.mts"
+        mts_file.touch()
+
+        result = discover_files([str(mts_file)])
+        assert len(result) == 1
+        assert result[0] == mts_file
+
+    def test_discover_files_multiple_files(self, tmp_path):
+        """discover_files should return multiple MTS files."""
+        from batch_converter import discover_files
+
+        # Create test MTS files
+        mts1 = tmp_path / "video1.mts"
+        mts2 = tmp_path / "video2.MTS"
+        mts1.touch()
+        mts2.touch()
+
+        result = discover_files([str(mts1), str(mts2)])
+        assert len(result) == 2
+        assert mts1 in result
+        assert mts2 in result
+
+    def test_discover_files_from_directory(self, tmp_path):
+        """discover_files should find all MTS files in a directory."""
+        from batch_converter import discover_files
+
+        # Create test MTS files in directory
+        mts1 = tmp_path / "video1.mts"
+        mts2 = tmp_path / "video2.MTS"
+        txt_file = tmp_path / "readme.txt"  # Should be ignored
+        mts1.touch()
+        mts2.touch()
+        txt_file.touch()
+
+        result = discover_files([str(tmp_path)])
+        assert len(result) == 2
+        assert mts1 in result
+        assert mts2 in result
+
+    def test_discover_files_glob_pattern(self, tmp_path):
+        """discover_files should expand glob patterns."""
+        from batch_converter import discover_files
+
+        # Create test MTS files
+        mts1 = tmp_path / "video1.mts"
+        mts2 = tmp_path / "video2.mts"
+        mts1.touch()
+        mts2.touch()
+
+        result = discover_files([str(tmp_path / "*.mts")])
+        assert len(result) == 2
+
+    def test_discover_files_filters_non_mts(self, tmp_path):
+        """discover_files should only return .mts/.MTS files."""
+        from batch_converter import discover_files
+
+        # Create mixed file types
+        mts_file = tmp_path / "video.mts"
+        mp4_file = tmp_path / "video.mp4"
+        txt_file = tmp_path / "notes.txt"
+        mts_file.touch()
+        mp4_file.touch()
+        txt_file.touch()
+
+        result = discover_files([str(mts_file), str(mp4_file), str(txt_file)])
+        assert len(result) == 1
+        assert result[0] == mts_file
+
+    def test_discover_files_skips_nonexistent(self, tmp_path):
+        """discover_files should skip files that don't exist."""
+        from batch_converter import discover_files
+
+        mts_file = tmp_path / "exists.mts"
+        mts_file.touch()
+        nonexistent = tmp_path / "missing.mts"
+
+        result = discover_files([str(mts_file), str(nonexistent)])
+        assert len(result) == 1
+        assert result[0] == mts_file
+
+    def test_discover_files_case_insensitive_extension(self, tmp_path):
+        """discover_files should accept both .mts and .MTS extensions."""
+        from batch_converter import discover_files
+
+        lower_mts = tmp_path / "video.mts"
+        upper_mts = tmp_path / "video2.MTS"
+        mixed_mts = tmp_path / "video3.Mts"
+        lower_mts.touch()
+        upper_mts.touch()
+        mixed_mts.touch()
+
+        result = discover_files([str(lower_mts), str(upper_mts), str(mixed_mts)])
+        assert len(result) == 3
+
+    def test_discover_files_empty_input(self):
+        """discover_files should return empty list for empty input."""
+        from batch_converter import discover_files
+
+        result = discover_files([])
+        assert result == []
+
+    def test_discover_files_returns_unique(self, tmp_path):
+        """discover_files should not return duplicate paths."""
+        from batch_converter import discover_files
+
+        mts_file = tmp_path / "video.mts"
+        mts_file.touch()
+
+        # Pass the same file multiple times
+        result = discover_files([str(mts_file), str(mts_file)])
+        assert len(result) == 1

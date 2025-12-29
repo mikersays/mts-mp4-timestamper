@@ -232,3 +232,194 @@ class TestDiscoverFiles:
         # Pass the same file multiple times
         result = discover_files([str(mts_file), str(mts_file)])
         assert len(result) == 1
+
+
+class TestConvertBatch:
+    """Tests for BatchConverter.convert_batch method."""
+
+    def test_convert_batch_empty_list(self):
+        """convert_batch with empty list should return empty results."""
+        from batch_converter import BatchConverter
+
+        converter = BatchConverter()
+        results = converter.convert_batch([])
+
+        assert results == []
+        assert converter.results == []
+
+    def test_convert_batch_calls_convert_for_each_file(self, tmp_path, mocker):
+        """convert_batch should call convert_video for each file."""
+        from batch_converter import BatchConverter
+        from pathlib import Path
+
+        # Create test files
+        mts1 = tmp_path / "video1.mts"
+        mts2 = tmp_path / "video2.mts"
+        mts1.touch()
+        mts2.touch()
+
+        # Mock convert_video to return True
+        mock_convert = mocker.patch(
+            'batch_converter.convert_video',
+            return_value=True
+        )
+
+        converter = BatchConverter()
+        converter.convert_batch([mts1, mts2])
+
+        assert mock_convert.call_count == 2
+
+    def test_convert_batch_returns_results_for_each_file(self, tmp_path, mocker):
+        """convert_batch should return a BatchResult for each input file."""
+        from batch_converter import BatchConverter, BatchResult
+        from pathlib import Path
+
+        mts1 = tmp_path / "video1.mts"
+        mts2 = tmp_path / "video2.mts"
+        mts1.touch()
+        mts2.touch()
+
+        # Mock convert_video
+        mocker.patch('batch_converter.convert_video', return_value=True)
+
+        converter = BatchConverter()
+        results = converter.convert_batch([mts1, mts2])
+
+        assert len(results) == 2
+        assert all(isinstance(r, BatchResult) for r in results)
+
+    def test_convert_batch_tracks_success(self, tmp_path, mocker):
+        """convert_batch should record success for successful conversions."""
+        from batch_converter import BatchConverter
+        from pathlib import Path
+
+        mts_file = tmp_path / "video.mts"
+        mts_file.touch()
+
+        mocker.patch('batch_converter.convert_video', return_value=True)
+
+        converter = BatchConverter()
+        results = converter.convert_batch([mts_file])
+
+        assert len(results) == 1
+        assert results[0].success is True
+        assert results[0].error is None
+
+    def test_convert_batch_tracks_failure(self, tmp_path, mocker):
+        """convert_batch should record failure for failed conversions."""
+        from batch_converter import BatchConverter
+        from pathlib import Path
+
+        mts_file = tmp_path / "video.mts"
+        mts_file.touch()
+
+        mocker.patch('batch_converter.convert_video', return_value=False)
+
+        converter = BatchConverter()
+        results = converter.convert_batch([mts_file])
+
+        assert len(results) == 1
+        assert results[0].success is False
+        assert results[0].error is not None
+
+    def test_convert_batch_updates_results_attribute(self, tmp_path, mocker):
+        """convert_batch should update the converter's results attribute."""
+        from batch_converter import BatchConverter
+        from pathlib import Path
+
+        mts_file = tmp_path / "video.mts"
+        mts_file.touch()
+
+        mocker.patch('batch_converter.convert_video', return_value=True)
+
+        converter = BatchConverter()
+        results = converter.convert_batch([mts_file])
+
+        assert converter.results == results
+        assert len(converter.results) == 1
+
+    def test_convert_batch_invokes_progress_callback(self, tmp_path, mocker):
+        """convert_batch should invoke progress callback after each file."""
+        from batch_converter import BatchConverter
+        from pathlib import Path
+
+        mts1 = tmp_path / "video1.mts"
+        mts2 = tmp_path / "video2.mts"
+        mts1.touch()
+        mts2.touch()
+
+        mocker.patch('batch_converter.convert_video', return_value=True)
+
+        progress_calls = []
+
+        def track_progress(current: int, total: int, current_file: Path) -> None:
+            progress_calls.append((current, total, current_file))
+
+        converter = BatchConverter(progress_callback=track_progress)
+        converter.convert_batch([mts1, mts2])
+
+        assert len(progress_calls) == 2
+        assert progress_calls[0] == (1, 2, mts1)
+        assert progress_calls[1] == (2, 2, mts2)
+
+    def test_convert_batch_continues_after_failure(self, tmp_path, mocker):
+        """convert_batch should continue processing after a failure."""
+        from batch_converter import BatchConverter
+        from pathlib import Path
+
+        mts1 = tmp_path / "video1.mts"
+        mts2 = tmp_path / "video2.mts"
+        mts3 = tmp_path / "video3.mts"
+        mts1.touch()
+        mts2.touch()
+        mts3.touch()
+
+        # First and third succeed, second fails
+        mocker.patch(
+            'batch_converter.convert_video',
+            side_effect=[True, False, True]
+        )
+
+        converter = BatchConverter()
+        results = converter.convert_batch([mts1, mts2, mts3])
+
+        assert len(results) == 3
+        assert results[0].success is True
+        assert results[1].success is False
+        assert results[2].success is True
+
+    def test_convert_batch_sets_output_file_on_success(self, tmp_path, mocker):
+        """convert_batch should set output_file path on successful conversion."""
+        from batch_converter import BatchConverter
+        from pathlib import Path
+
+        mts_file = tmp_path / "video.mts"
+        mts_file.touch()
+
+        mocker.patch('batch_converter.convert_video', return_value=True)
+
+        converter = BatchConverter()
+        results = converter.convert_batch([mts_file])
+
+        assert results[0].output_file is not None
+        assert results[0].output_file.suffix == '.mp4'
+
+    def test_convert_batch_handles_exception(self, tmp_path, mocker):
+        """convert_batch should handle exceptions during conversion."""
+        from batch_converter import BatchConverter
+        from pathlib import Path
+
+        mts_file = tmp_path / "video.mts"
+        mts_file.touch()
+
+        mocker.patch(
+            'batch_converter.convert_video',
+            side_effect=Exception("FFmpeg crashed")
+        )
+
+        converter = BatchConverter()
+        results = converter.convert_batch([mts_file])
+
+        assert len(results) == 1
+        assert results[0].success is False
+        assert "FFmpeg crashed" in results[0].error

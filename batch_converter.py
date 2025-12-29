@@ -12,6 +12,8 @@ from glob import glob
 from pathlib import Path
 from typing import Callable, List, Optional
 
+from mts_converter import convert_video
+
 
 # Type alias for progress callback
 # Signature: callback(current: int, total: int, current_file: Path) -> None
@@ -61,7 +63,42 @@ class BatchConverter:
         Returns:
             List of BatchResult objects, one per input file.
         """
-        # Implementation will be added in Task 1.3
+        self.results = []
+        total = len(files)
+
+        for index, input_file in enumerate(files, start=1):
+            output_file = input_file.with_suffix('.mp4')
+
+            try:
+                success = convert_video(str(input_file), str(output_file))
+
+                if success:
+                    result = BatchResult(
+                        input_file=input_file,
+                        output_file=output_file,
+                        success=True,
+                        error=None
+                    )
+                else:
+                    result = BatchResult(
+                        input_file=input_file,
+                        output_file=None,
+                        success=False,
+                        error="Conversion failed"
+                    )
+            except Exception as e:
+                result = BatchResult(
+                    input_file=input_file,
+                    output_file=None,
+                    success=False,
+                    error=str(e)
+                )
+
+            self.results.append(result)
+
+            if self.progress_callback:
+                self.progress_callback(index, total, input_file)
+
         return self.results
 
 

@@ -28,7 +28,7 @@
 - [x] Manual verification of batch module
 - [x] Phase checkpoint
 
-## Phase 2: CLI Integration
+## Phase 2: CLI Integration [checkpoint: 684311d]
 
 ### Task 2.1: Update CLI argument parsing [546fd3e]
 - [x] Modify argument parser to accept multiple input paths

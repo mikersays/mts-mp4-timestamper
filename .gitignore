@@ -1,0 +1,27 @@
+# Video files (too large for GitHub)
+*.MTS
+*.mts
+*.mp4
+*.MP4
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Build artifacts
+build/
+dist/
+
+# FFmpeg binaries
+ffmpeg.exe
+ffprobe.exe
+ffmpeg/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -36,10 +36,10 @@
 - [x] Add `--continue-on-error` flag
 - [x] Maintain single-file backward compatibility
 
-### Task 2.2: Integrate batch converter with CLI
-- [ ] Detect batch vs single-file mode based on arguments
-- [ ] Display per-file progress during batch conversion
-- [ ] Show batch summary at completion
+### Task 2.2: Integrate batch converter with CLI [521aa2e]
+- [x] Detect batch vs single-file mode based on arguments
+- [x] Display per-file progress during batch conversion
+- [x] Show batch summary at completion
 
 ### Task 2.3: CLI error handling and exit codes
 - [ ] Return exit code 0 if all successful

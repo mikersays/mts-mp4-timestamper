@@ -423,3 +423,140 @@ class TestConvertBatch:
         assert len(results) == 1
         assert results[0].success is False
         assert "FFmpeg crashed" in results[0].error
+
+
+class TestOutputDirectory:
+    """Tests for output directory support in BatchConverter."""
+
+    def test_batch_converter_accepts_output_dir(self):
+        """BatchConverter should accept an output_dir parameter."""
+        from batch_converter import BatchConverter
+        from pathlib import Path
+
+        output_dir = Path("/tmp/output")
+        converter = BatchConverter(output_dir=output_dir)
+
+        assert converter.output_dir == output_dir
+
+    def test_batch_converter_output_dir_defaults_none(self):
+        """BatchConverter output_dir should default to None."""
+        from batch_converter import BatchConverter
+
+        converter = BatchConverter()
+        assert converter.output_dir is None
+
+    def test_convert_batch_uses_output_dir(self, tmp_path, mocker):
+        """convert_batch should save to output_dir when specified."""
+        from batch_converter import BatchConverter
+        from pathlib import Path
+
+        input_dir = tmp_path / "input"
+        output_dir = tmp_path / "output"
+        input_dir.mkdir()
+        output_dir.mkdir()
+
+        mts_file = input_dir / "video.mts"
+        mts_file.touch()
+
+        mock_convert = mocker.patch('batch_converter.convert_video', return_value=True)
+
+        converter = BatchConverter(output_dir=output_dir)
+        results = converter.convert_batch([mts_file])
+
+        # Check that convert_video was called with output in output_dir
+        call_args = mock_convert.call_args[0]
+        output_path = Path(call_args[1])
+        assert output_path.parent == output_dir
+        assert output_path.name == "video.mp4"
+
+    def test_convert_batch_preserves_filename_in_output_dir(self, tmp_path, mocker):
+        """convert_batch should preserve original filename in output_dir."""
+        from batch_converter import BatchConverter
+        from pathlib import Path
+
+        input_dir = tmp_path / "input"
+        output_dir = tmp_path / "output"
+        input_dir.mkdir()
+        output_dir.mkdir()
+
+        mts_file = input_dir / "my_vacation_2024.mts"
+        mts_file.touch()
+
+        mocker.patch('batch_converter.convert_video', return_value=True)
+
+        converter = BatchConverter(output_dir=output_dir)
+        results = converter.convert_batch([mts_file])
+
+        assert results[0].output_file == output_dir / "my_vacation_2024.mp4"
+
+    def test_convert_batch_handles_filename_conflict(self, tmp_path, mocker):
+        """convert_batch should handle filename conflicts with numeric suffix."""
+        from batch_converter import BatchConverter
+        from pathlib import Path
+
+        input_dir = tmp_path / "input"
+        output_dir = tmp_path / "output"
+        input_dir.mkdir()
+        output_dir.mkdir()
+
+        # Create existing file in output directory
+        existing_output = output_dir / "video.mp4"
+        existing_output.touch()
+
+        mts_file = input_dir / "video.mts"
+        mts_file.touch()
+
+        mock_convert = mocker.patch('batch_converter.convert_video', return_value=True)
+
+        converter = BatchConverter(output_dir=output_dir)
+        results = converter.convert_batch([mts_file])
+
+        # Should have used video_1.mp4 instead
+        call_args = mock_convert.call_args[0]
+        output_path = Path(call_args[1])
+        assert output_path.name == "video_1.mp4"
+
+    def test_convert_batch_handles_multiple_conflicts(self, tmp_path, mocker):
+        """convert_batch should increment suffix for multiple conflicts."""
+        from batch_converter import BatchConverter
+        from pathlib import Path
+
+        input_dir = tmp_path / "input"
+        output_dir = tmp_path / "output"
+        input_dir.mkdir()
+        output_dir.mkdir()
+
+        # Create multiple existing files
+        (output_dir / "video.mp4").touch()
+        (output_dir / "video_1.mp4").touch()
+        (output_dir / "video_2.mp4").touch()
+
+        mts_file = input_dir / "video.mts"
+        mts_file.touch()
+
+        mock_convert = mocker.patch('batch_converter.convert_video', return_value=True)
+
+        converter = BatchConverter(output_dir=output_dir)
+        results = converter.convert_batch([mts_file])
+
+        call_args = mock_convert.call_args[0]
+        output_path = Path(call_args[1])
+        assert output_path.name == "video_3.mp4"
+
+    def test_convert_batch_without_output_dir_uses_source_dir(self, tmp_path, mocker):
+        """convert_batch without output_dir should save next to source file."""
+        from batch_converter import BatchConverter
+        from pathlib import Path
+
+        mts_file = tmp_path / "video.mts"
+        mts_file.touch()
+
+        mock_convert = mocker.patch('batch_converter.convert_video', return_value=True)
+
+        converter = BatchConverter()  # No output_dir
+        results = converter.convert_batch([mts_file])
+
+        call_args = mock_convert.call_args[0]
+        output_path = Path(call_args[1])
+        assert output_path.parent == tmp_path
+        assert output_path.name == "video.mp4"

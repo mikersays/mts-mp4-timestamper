@@ -41,18 +41,54 @@ class BatchConverter:
 
     Attributes:
         progress_callback: Optional callback invoked after each file conversion.
+        output_dir: Optional directory for output files.
         results: List of BatchResult objects from conversions.
     """
 
-    def __init__(self, progress_callback: Optional[BatchProgress] = None):
+    def __init__(
+        self,
+        progress_callback: Optional[BatchProgress] = None,
+        output_dir: Optional[Path] = None
+    ):
         """Initialize BatchConverter.
 
         Args:
             progress_callback: Optional callback for progress updates.
                                Called with (current, total, current_file).
+            output_dir: Optional directory for output files. If None,
+                        output files are saved next to input files.
         """
         self.progress_callback = progress_callback
+        self.output_dir = output_dir
         self.results: List[BatchResult] = []
+
+    def _get_output_path(self, input_file: Path) -> Path:
+        """Determine the output path for a given input file.
+
+        Args:
+            input_file: Path to the input MTS file.
+
+        Returns:
+            Path for the output MP4 file, handling conflicts if needed.
+        """
+        if self.output_dir is None:
+            return input_file.with_suffix('.mp4')
+
+        # Use output_dir with original filename
+        base_output = self.output_dir / input_file.with_suffix('.mp4').name
+
+        # Handle filename conflicts
+        if not base_output.exists():
+            return base_output
+
+        # Find a unique filename with numeric suffix
+        stem = input_file.stem
+        counter = 1
+        while True:
+            candidate = self.output_dir / f"{stem}_{counter}.mp4"
+            if not candidate.exists():
+                return candidate
+            counter += 1
 
     def convert_batch(self, files: List[Path]) -> List[BatchResult]:
         """Convert a batch of MTS files to MP4 format.
@@ -67,7 +103,7 @@ class BatchConverter:
         total = len(files)
 
         for index, input_file in enumerate(files, start=1):
-            output_file = input_file.with_suffix('.mp4')
+            output_file = self._get_output_path(input_file)
 
             try:
                 success = convert_video(str(input_file), str(output_file))

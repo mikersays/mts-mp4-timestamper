@@ -30,11 +30,11 @@
 
 ## Phase 2: CLI Integration
 
-### Task 2.1: Update CLI argument parsing
-- [ ] Modify argument parser to accept multiple input paths
-- [ ] Add `--output-dir` option
-- [ ] Add `--continue-on-error` flag
-- [ ] Maintain single-file backward compatibility
+### Task 2.1: Update CLI argument parsing [546fd3e]
+- [x] Modify argument parser to accept multiple input paths
+- [x] Add `--output-dir` option
+- [x] Add `--continue-on-error` flag
+- [x] Maintain single-file backward compatibility
 
 ### Task 2.2: Integrate batch converter with CLI
 - [ ] Detect batch vs single-file mode based on arguments

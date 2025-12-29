@@ -6,6 +6,7 @@ This tool converts .MTS video files to .MP4 format while adding a timestamp
 overlay that shows when the video was filmed and tracks time as it progresses.
 """
 
+import argparse
 import subprocess
 import sys
 import os
@@ -24,6 +25,78 @@ from ffmpeg_utils import (
 # Module-level paths (set during initialization)
 FFMPEG_PATH = None
 FFPROBE_PATH = None
+
+
+def parse_args(args):
+    """Parse command-line arguments for batch processing support.
+
+    Args:
+        args: List of command-line arguments (without script name).
+
+    Returns:
+        Namespace with parsed arguments, or None if no input provided.
+    """
+    if not args:
+        return None
+
+    # Check for legacy mode: input.mts output.mp4
+    # Legacy mode is when we have exactly 2 args and the second ends with .mp4
+    if len(args) == 2 and args[1].lower().endswith('.mp4'):
+        # Legacy single-file mode with explicit output
+        result = argparse.Namespace()
+        result.input_paths = [args[0]]
+        result.output_file = args[1]
+        result.output_dir = None
+        result.continue_on_error = True
+        result.legacy_mode = True
+        return result
+
+    parser = argparse.ArgumentParser(
+        description='MTS to MP4 Converter with Timestamp Overlay',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Examples:
+  %(prog)s video.mts                    Convert single file
+  %(prog)s video.mts output.mp4         Convert with specific output name
+  %(prog)s *.mts                        Convert all MTS files in current dir
+  %(prog)s video1.mts video2.mts        Convert multiple files
+  %(prog)s ./videos/ -o ./converted/    Convert directory to output folder
+'''
+    )
+
+    parser.add_argument(
+        'input_paths',
+        nargs='+',
+        help='Input .MTS file(s), directory, or glob pattern'
+    )
+
+    parser.add_argument(
+        '-o', '--output-dir',
+        dest='output_dir',
+        default=None,
+        help='Output directory for converted files'
+    )
+
+    parser.add_argument(
+        '--continue-on-error',
+        action='store_true',
+        default=True,
+        dest='continue_on_error',
+        help='Continue processing remaining files if one fails (default)'
+    )
+
+    parser.add_argument(
+        '--stop-on-error',
+        action='store_false',
+        dest='continue_on_error',
+        help='Stop processing if any file fails'
+    )
+
+    parsed = parser.parse_args(args)
+    parsed.output_file = None
+    parsed.legacy_mode = False
+
+    return parsed
 
 
 def check_ffmpeg():

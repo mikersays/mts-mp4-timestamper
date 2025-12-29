@@ -93,9 +93,9 @@
 - [x] Document GUI batch workflow
 - [x] Add troubleshooting section for batch issues
 
-### Task 4.2: Update CLAUDE.md
-- [ ] Add batch processing to architecture section
-- [ ] Document new module structure
+### Task 4.2: Update CLAUDE.md [00817ba]
+- [x] Add batch processing to architecture section
+- [x] Document new module structure
 
 ### Task 4.3: Final testing and polish
 - [ ] End-to-end testing with real MTS files

@@ -1,6 +1,6 @@
 # Implementation Plan: Batch Processing Support
 
-## Phase 1: Core Batch Processing Module
+## Phase 1: Core Batch Processing Module [checkpoint: 81032a6]
 
 ### Task 1.1: Create batch converter module structure [abfabe0]
 - [x] Create `batch_converter.py` with BatchConverter class

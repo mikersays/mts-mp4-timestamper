@@ -29,16 +29,16 @@
 
 ## Phase 2: Fix Metadata Timestamp Extraction [checkpoint: ]
 
-### Task 2.1: Improve Metadata Timestamp Extraction
-- [ ] **Red:** Write tests for metadata timestamp extraction
-  - [ ] Test extraction of creation_time from valid MTS metadata
-  - [ ] Test extraction fails gracefully when metadata missing
-  - [ ] Test that file mtime is NOT used as fallback
-- [ ] **Green:** Update timestamp extraction to use correct metadata field
-  - [ ] Review current ffprobe metadata extraction logic
-  - [ ] Ensure `creation_time` or appropriate field is used
-  - [ ] Remove fallback to file modification time
-- [ ] **Refactor:** Consolidate metadata extraction logic
+### Task 2.1: Improve Metadata Timestamp Extraction [56a461e]
+- [x] **Red:** Write tests for metadata timestamp extraction
+  - [x] Test extraction of creation_time from valid MTS metadata
+  - [x] Test extraction fails gracefully when metadata missing
+  - [x] Test that file mtime is NOT used as fallback
+- [x] **Green:** Update timestamp extraction to use correct metadata field
+  - [x] Review current ffprobe metadata extraction logic
+  - [x] Ensure `creation_time` or appropriate field is used
+  - [x] Remove fallback to file modification time
+- [x] **Refactor:** Consolidate metadata extraction logic
 
 ### Task 2.2: Implement Strict Error Handling for Missing Metadata
 - [ ] **Red:** Write tests for error handling behavior

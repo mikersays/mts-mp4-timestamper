@@ -2,10 +2,10 @@
 
 ## Phase 1: Core Batch Processing Module
 
-### Task 1.1: Create batch converter module structure
-- [ ] Create `batch_converter.py` with BatchConverter class
-- [ ] Define BatchResult dataclass for tracking conversion results
-- [ ] Define BatchProgress callback protocol for progress updates
+### Task 1.1: Create batch converter module structure [abfabe0]
+- [x] Create `batch_converter.py` with BatchConverter class
+- [x] Define BatchResult dataclass for tracking conversion results
+- [x] Define BatchProgress callback protocol for progress updates
 
 ### Task 1.2: Implement file discovery
 - [ ] Add function to resolve file paths from arguments (files, directories, globs)

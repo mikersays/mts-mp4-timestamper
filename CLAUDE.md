@@ -21,6 +21,7 @@ python mts_converter.py input.mts [output.mp4]
 python mts_converter.py file1.mts file2.mts file3.mts
 python mts_converter.py ./videos/                     # All MTS in directory
 python mts_converter.py *.mts --output-dir ./output/  # With output directory
+python mts_converter.py input.mts -p top-left         # Specify timestamp position
 
 # GUI version (Windows)
 python mts_converter_gui.py
@@ -39,9 +40,18 @@ python mts_converter_gui.py
 - `ffmpeg_utils.py` - FFmpeg path resolution (bundled/system)
 
 ### Core Conversion Flow
-1. Extract filming timestamp via `ffprobe` metadata (falls back to file mtime)
+1. Extract filming timestamp via `ffprobe` metadata (raises `MetadataExtractionError` if unavailable)
 2. Build FFmpeg `drawtext` filter using `pts:localtime` for dynamic time display
 3. Transcode to H.264/AAC MP4 with `+faststart` flag
+
+### Timestamp Position
+The timestamp overlay position can be configured via CLI (`-p/--position`) or GUI dropdown:
+- `top-left`, `top-right`, `bottom-left`, `bottom-right`
+- Default: `bottom-right`
+
+Position constants and coordinate calculation are in `mts_converter.py`:
+- `POSITIONS` dict maps position names to FFmpeg x:y coordinate expressions
+- `get_position_coordinates(position, margin)` returns the coordinate string
 
 ### Batch Processing
 The `BatchConverter` class in `batch_converter.py` provides:

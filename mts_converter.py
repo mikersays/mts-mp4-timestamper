@@ -26,6 +26,16 @@ from ffmpeg_utils import (
 FFMPEG_PATH = None
 FFPROBE_PATH = None
 
+
+class MetadataExtractionError(Exception):
+    """Raised when video metadata timestamp cannot be extracted.
+
+    This error indicates that the recording timestamp could not be determined
+    from the video file's metadata. The application does NOT fall back to
+    file system timestamps to ensure timestamp accuracy.
+    """
+    pass
+
 # Position constants for timestamp overlay
 DEFAULT_POSITION = 'bottom-right'
 POSITIONS = {
@@ -156,7 +166,19 @@ def check_ffmpeg():
 
 
 def get_video_creation_time(input_file):
-    """Extract the creation/recording time from video metadata using ffprobe."""
+    """Extract the creation/recording time from video metadata using ffprobe.
+
+    Args:
+        input_file: Path to the video file.
+
+    Returns:
+        datetime object representing the recording timestamp.
+
+    Raises:
+        MetadataExtractionError: If the timestamp cannot be extracted from
+            video metadata. This error is raised instead of falling back to
+            file modification time to ensure timestamp accuracy.
+    """
     ffprobe = FFPROBE_PATH or get_ffprobe_path()
     try:
         result = subprocess.run(
@@ -190,15 +212,20 @@ def get_video_creation_time(input_file):
                         return datetime.strptime(time_str, fmt)
                     except ValueError:
                         continue
-    except Exception as e:
-        print(f"Warning: Could not extract creation time from metadata: {e}")
 
-    # Fallback to file modification time
-    try:
-        mtime = os.path.getmtime(input_file)
-        return datetime.fromtimestamp(mtime)
-    except Exception:
-        return datetime.now()
+        # No valid timestamp found in metadata
+        raise MetadataExtractionError(
+            f"Could not extract recording timestamp from metadata in '{input_file}'. "
+            "The file may be corrupted, missing metadata, or not an MTS video file."
+        )
+
+    except MetadataExtractionError:
+        # Re-raise our own exception
+        raise
+    except Exception as e:
+        raise MetadataExtractionError(
+            f"Failed to extract recording timestamp from '{input_file}': {e}"
+        )
 
 
 def convert_video(input_file, output_file=None, font_size=24, position=None):

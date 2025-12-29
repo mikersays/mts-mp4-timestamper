@@ -3,14 +3,17 @@
 MTS to MP4 Video Converter with Dynamic Timestamp Overlay - GUI Version
 
 A simple Windows GUI for converting .MTS videos to .MP4 with timestamp overlay.
+Supports batch processing of multiple files with progress tracking.
 """
 
 import subprocess
 import sys
 import os
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
+from typing import List, Optional
 
 from ffmpeg_utils import (
     get_ffmpeg_path,
@@ -29,22 +32,43 @@ except ImportError:
 
 
 class MTSConverterGUI:
+    """GUI application for batch converting MTS videos to MP4 with timestamps."""
+
     def __init__(self, root):
+        """Initialize the GUI application.
+
+        Args:
+            root: The tkinter root window.
+        """
         self.root = root
         self.root.title("MTS to MP4 Converter with Timestamp")
-        self.root.geometry("600x450")
+        self.root.geometry("700x600")
         self.root.resizable(True, True)
 
-        self.input_file = tk.StringVar()
-        self.output_file = tk.StringVar()
+        # File queue for batch processing
+        self.file_queue: List[Path] = []
+        self.batch_results: List = []
+
+        # Batch processing state
+        self.is_converting = False
+        self.cancel_requested = False
+        self.batch_start_time: Optional[float] = None
+
+        # Output directory (None = same as source)
+        self.output_dir: Optional[Path] = None
+
+        # Timestamp options
         self.position = tk.StringVar(value="top-left")
         self.font_size = tk.IntVar(value=24)
-        self.is_converting = False
+
+        # Progress tracking
+        self.batch_progress_var = tk.DoubleVar(value=0)
 
         self.create_widgets()
         self.check_dependencies()
 
     def create_widgets(self):
+        """Create all GUI widgets."""
         # Main frame with padding
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.grid(row=0, column=0, sticky="nsew")
@@ -56,41 +80,105 @@ class MTSConverterGUI:
         # Title
         title_label = ttk.Label(
             main_frame,
-            text="MTS to MP4 Converter",
+            text="MTS to MP4 Batch Converter",
             font=("Segoe UI", 16, "bold")
         )
-        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 10))
+        title_label.grid(row=0, column=0, columnspan=4, pady=(0, 10))
 
         subtitle = ttk.Label(
             main_frame,
-            text="Converts MTS videos with dynamic timestamp overlay",
+            text="Convert MTS videos with dynamic timestamp overlay",
             font=("Segoe UI", 9)
         )
-        subtitle.grid(row=1, column=0, columnspan=3, pady=(0, 15))
+        subtitle.grid(row=1, column=0, columnspan=4, pady=(0, 15))
 
-        # Input file selection
-        ttk.Label(main_frame, text="Input File (.MTS):").grid(
-            row=2, column=0, sticky="w", pady=5
-        )
-        input_entry = ttk.Entry(main_frame, textvariable=self.input_file, width=50)
-        input_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
-        ttk.Button(main_frame, text="Browse...", command=self.browse_input).grid(
-            row=2, column=2, pady=5
-        )
+        # File queue frame
+        queue_frame = ttk.LabelFrame(main_frame, text="File Queue", padding="5")
+        queue_frame.grid(row=2, column=0, columnspan=4, sticky="nsew", pady=5)
+        queue_frame.columnconfigure(0, weight=1)
+        queue_frame.rowconfigure(0, weight=1)
+        main_frame.rowconfigure(2, weight=1)
 
-        # Output file selection
-        ttk.Label(main_frame, text="Output File (.MP4):").grid(
-            row=3, column=0, sticky="w", pady=5
+        # File listbox with scrollbar
+        self.file_listbox = tk.Listbox(
+            queue_frame,
+            height=8,
+            selectmode=tk.EXTENDED
         )
-        output_entry = ttk.Entry(main_frame, textvariable=self.output_file, width=50)
-        output_entry.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
-        ttk.Button(main_frame, text="Browse...", command=self.browse_output).grid(
-            row=3, column=2, pady=5
-        )
+        self.file_listbox.grid(row=0, column=0, sticky="nsew")
 
-        # Options frame
-        options_frame = ttk.LabelFrame(main_frame, text="Timestamp Options", padding="10")
-        options_frame.grid(row=4, column=0, columnspan=3, sticky="ew", pady=15)
+        queue_scrollbar = ttk.Scrollbar(
+            queue_frame,
+            orient="vertical",
+            command=self.file_listbox.yview
+        )
+        queue_scrollbar.grid(row=0, column=1, sticky="ns")
+        self.file_listbox.configure(yscrollcommand=queue_scrollbar.set)
+
+        # File queue buttons
+        queue_btn_frame = ttk.Frame(queue_frame)
+        queue_btn_frame.grid(row=1, column=0, columnspan=2, pady=5)
+
+        self.add_files_btn = ttk.Button(
+            queue_btn_frame,
+            text="Add Files",
+            command=self.browse_add_files
+        )
+        self.add_files_btn.grid(row=0, column=0, padx=2)
+
+        self.add_folder_btn = ttk.Button(
+            queue_btn_frame,
+            text="Add Folder",
+            command=self.browse_add_folder
+        )
+        self.add_folder_btn.grid(row=0, column=1, padx=2)
+
+        self.remove_btn = ttk.Button(
+            queue_btn_frame,
+            text="Remove Selected",
+            command=self.remove_selected_files
+        )
+        self.remove_btn.grid(row=0, column=2, padx=2)
+
+        self.clear_all_btn = ttk.Button(
+            queue_btn_frame,
+            text="Clear All",
+            command=self.clear_file_queue
+        )
+        self.clear_all_btn.grid(row=0, column=3, padx=2)
+
+        # Output directory frame
+        output_frame = ttk.LabelFrame(main_frame, text="Output Options", padding="5")
+        output_frame.grid(row=3, column=0, columnspan=4, sticky="ew", pady=5)
+        output_frame.columnconfigure(1, weight=1)
+
+        ttk.Label(output_frame, text="Output Directory:").grid(
+            row=0, column=0, sticky="w", padx=5
+        )
+        self.output_dir_var = tk.StringVar(value="(Same as source)")
+        output_dir_entry = ttk.Entry(
+            output_frame,
+            textvariable=self.output_dir_var,
+            state="readonly"
+        )
+        output_dir_entry.grid(row=0, column=1, sticky="ew", padx=5)
+
+        self.browse_output_dir_btn = ttk.Button(
+            output_frame,
+            text="Browse...",
+            command=self.browse_output_dir
+        )
+        self.browse_output_dir_btn.grid(row=0, column=2, padx=5)
+
+        ttk.Button(
+            output_frame,
+            text="Reset",
+            command=self.reset_output_dir
+        ).grid(row=0, column=3, padx=5)
+
+        # Timestamp options frame
+        options_frame = ttk.LabelFrame(main_frame, text="Timestamp Options", padding="5")
+        options_frame.grid(row=4, column=0, columnspan=4, sticky="ew", pady=5)
         options_frame.columnconfigure(1, weight=1)
 
         # Position selection
@@ -115,68 +203,177 @@ class MTSConverterGUI:
         )
         font_spin.grid(row=1, column=1, sticky="w", padx=5, pady=5)
 
-        # Progress bar
-        self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(
-            main_frame,
-            variable=self.progress_var,
-            maximum=100,
-            mode='indeterminate'
-        )
-        self.progress_bar.grid(row=5, column=0, columnspan=3, sticky="ew", pady=10)
+        # Progress frame
+        progress_frame = ttk.LabelFrame(main_frame, text="Progress", padding="5")
+        progress_frame.grid(row=5, column=0, columnspan=4, sticky="ew", pady=5)
+        progress_frame.columnconfigure(0, weight=1)
 
-        # Status label
-        self.status_label = ttk.Label(main_frame, text="Ready", font=("Segoe UI", 9))
-        self.status_label.grid(row=6, column=0, columnspan=3, pady=5)
+        # File counter label
+        self.file_counter_label = ttk.Label(
+            progress_frame,
+            text="0 of 0 files",
+            font=("Segoe UI", 9)
+        )
+        self.file_counter_label.grid(row=0, column=0, sticky="w")
+
+        # Elapsed time label
+        self.elapsed_time_label = ttk.Label(
+            progress_frame,
+            text="Elapsed: 00:00",
+            font=("Segoe UI", 9)
+        )
+        self.elapsed_time_label.grid(row=0, column=1, sticky="e")
+
+        # Batch progress bar
+        self.batch_progress_bar = ttk.Progressbar(
+            progress_frame,
+            variable=self.batch_progress_var,
+            maximum=100,
+            mode='determinate'
+        )
+        self.batch_progress_bar.grid(row=1, column=0, columnspan=2, sticky="ew", pady=5)
+
+        # Current file label
+        self.current_file_label = ttk.Label(
+            progress_frame,
+            text="Ready",
+            font=("Segoe UI", 9)
+        )
+        self.current_file_label.grid(row=2, column=0, columnspan=2, sticky="w")
+
+        # Status label (for FFmpeg output)
+        self.status_label = ttk.Label(progress_frame, text="", font=("Segoe UI", 9))
+        self.status_label.grid(row=3, column=0, columnspan=2, sticky="w", pady=2)
+
+        # Button frame
+        btn_frame = ttk.Frame(main_frame)
+        btn_frame.grid(row=6, column=0, columnspan=4, pady=10)
 
         # Convert button
         self.convert_btn = ttk.Button(
-            main_frame,
-            text="Convert Video",
-            command=self.start_conversion,
+            btn_frame,
+            text="Convert All",
+            command=self.start_batch_conversion,
             style="Accent.TButton"
         )
-        self.convert_btn.grid(row=7, column=0, columnspan=3, pady=15, ipadx=20, ipady=5)
+        self.convert_btn.grid(row=0, column=0, padx=5, ipadx=20, ipady=5)
+
+        # Cancel button
+        self.cancel_btn = ttk.Button(
+            btn_frame,
+            text="Cancel",
+            command=self.request_cancel,
+            state="disabled"
+        )
+        self.cancel_btn.grid(row=0, column=1, padx=5, ipadx=10, ipady=5)
 
         # Log area
         log_frame = ttk.LabelFrame(main_frame, text="Log", padding="5")
-        log_frame.grid(row=8, column=0, columnspan=3, sticky="nsew", pady=5)
+        log_frame.grid(row=7, column=0, columnspan=4, sticky="nsew", pady=5)
         log_frame.columnconfigure(0, weight=1)
         log_frame.rowconfigure(0, weight=1)
-        main_frame.rowconfigure(8, weight=1)
+        main_frame.rowconfigure(7, weight=1)
 
-        self.log_text = tk.Text(log_frame, height=8, width=60, state="disabled")
+        self.log_text = tk.Text(log_frame, height=6, width=60, state="disabled")
         self.log_text.grid(row=0, column=0, sticky="nsew")
 
         scrollbar = ttk.Scrollbar(log_frame, orient="vertical", command=self.log_text.yview)
         scrollbar.grid(row=0, column=1, sticky="ns")
         self.log_text.configure(yscrollcommand=scrollbar.set)
 
-    def log(self, message):
+    def log(self, message: str):
+        """Add a message to the log area.
+
+        Args:
+            message: The message to log.
+        """
         self.log_text.configure(state="normal")
         self.log_text.insert("end", message + "\n")
         self.log_text.see("end")
         self.log_text.configure(state="disabled")
 
-    def browse_input(self):
-        filename = filedialog.askopenfilename(
-            title="Select MTS Video File",
+    def browse_add_files(self):
+        """Open file dialog to add multiple MTS files to queue."""
+        filenames = filedialog.askopenfilenames(
+            title="Select MTS Video Files",
             filetypes=[("MTS Files", "*.mts *.MTS"), ("All Files", "*.*")]
         )
-        if filename:
-            self.input_file.set(filename)
-            # Auto-set output filename
-            output = Path(filename).with_suffix('.mp4')
-            self.output_file.set(str(output))
+        if filenames:
+            self.add_files_to_queue([Path(f) for f in filenames])
 
-    def browse_output(self):
-        filename = filedialog.asksaveasfilename(
-            title="Save MP4 File As",
-            defaultextension=".mp4",
-            filetypes=[("MP4 Files", "*.mp4"), ("All Files", "*.*")]
-        )
-        if filename:
-            self.output_file.set(filename)
+    def browse_add_folder(self):
+        """Open folder dialog to add all MTS files from a directory."""
+        folder = filedialog.askdirectory(title="Select Folder with MTS Files")
+        if folder:
+            folder_path = Path(folder)
+            mts_files = list(folder_path.glob("*.mts")) + list(folder_path.glob("*.MTS"))
+            if mts_files:
+                self.add_files_to_queue(mts_files)
+                self.log(f"Added {len(mts_files)} file(s) from {folder}")
+            else:
+                messagebox.showinfo("No Files", "No MTS files found in the selected folder.")
+
+    def browse_output_dir(self):
+        """Open folder dialog to select output directory."""
+        folder = filedialog.askdirectory(title="Select Output Directory")
+        if folder:
+            self.output_dir = Path(folder)
+            self.output_dir_var.set(str(self.output_dir))
+
+    def reset_output_dir(self):
+        """Reset output directory to default (same as source)."""
+        self.output_dir = None
+        self.output_dir_var.set("(Same as source)")
+
+    def add_files_to_queue(self, files: List[Path]):
+        """Add files to the conversion queue.
+
+        Args:
+            files: List of Path objects to add to the queue.
+        """
+        added_count = 0
+        for file_path in files:
+            # Prevent duplicates
+            if file_path not in self.file_queue:
+                self.file_queue.append(file_path)
+                self.file_listbox.insert(tk.END, file_path.name)
+                added_count += 1
+
+        if added_count > 0:
+            self.log(f"Added {added_count} file(s) to queue")
+        self._update_queue_display()
+
+    def remove_files_from_queue(self, indices: List[int]):
+        """Remove files at specified indices from the queue.
+
+        Args:
+            indices: List of indices to remove (in ascending order).
+        """
+        # Remove in reverse order to maintain correct indices
+        for index in sorted(indices, reverse=True):
+            if 0 <= index < len(self.file_queue):
+                removed = self.file_queue.pop(index)
+                self.file_listbox.delete(index)
+                self.log(f"Removed: {removed.name}")
+        self._update_queue_display()
+
+    def remove_selected_files(self):
+        """Remove currently selected files from the queue."""
+        selected = list(self.file_listbox.curselection())
+        if selected:
+            self.remove_files_from_queue(selected)
+
+    def clear_file_queue(self):
+        """Remove all files from the queue."""
+        self.file_queue.clear()
+        self.file_listbox.delete(0, tk.END)
+        self.log("Queue cleared")
+        self._update_queue_display()
+
+    def _update_queue_display(self):
+        """Update the file counter display."""
+        count = len(self.file_queue)
+        self.file_counter_label.configure(text=f"0 of {count} files")
 
     def check_dependencies(self):
         """Check if FFmpeg is installed (bundled or system)."""
@@ -198,8 +395,15 @@ class MTSConverterGUI:
                 "are in the same folder as this application."
             )
 
-    def get_video_creation_time(self, input_file):
-        """Extract the creation/recording time from video metadata."""
+    def get_video_creation_time(self, input_file: str) -> datetime:
+        """Extract the creation/recording time from video metadata.
+
+        Args:
+            input_file: Path to the input video file.
+
+        Returns:
+            The creation datetime, or file mtime if metadata unavailable.
+        """
         ffprobe = self.ffprobe_path or get_ffprobe_path()
         try:
             result = subprocess.run(
@@ -241,44 +445,126 @@ class MTSConverterGUI:
         except Exception:
             return datetime.now()
 
-    def start_conversion(self):
+    def request_cancel(self):
+        """Request cancellation of the current batch operation."""
+        self.cancel_requested = True
+        self.log("Cancel requested - will stop after current file...")
+        self.cancel_btn.configure(state="disabled")
+
+    def start_batch_conversion(self):
+        """Start batch conversion of all queued files."""
         if self.is_converting:
             return
 
-        input_path = self.input_file.get().strip()
-        output_path = self.output_file.get().strip()
-
-        if not input_path:
-            messagebox.showerror("Error", "Please select an input file.")
+        if not self.file_queue:
+            messagebox.showerror("Error", "Please add files to the queue first.")
             return
 
-        if not os.path.exists(input_path):
-            messagebox.showerror("Error", f"Input file not found:\n{input_path}")
+        # Validate all files exist
+        missing_files = [f for f in self.file_queue if not f.exists()]
+        if missing_files:
+            messagebox.showerror(
+                "Error",
+                f"The following files were not found:\n" +
+                "\n".join(str(f) for f in missing_files[:5])
+            )
             return
 
-        if not output_path:
-            output_path = str(Path(input_path).with_suffix('.mp4'))
-            self.output_file.set(output_path)
+        # Reset state
+        self.is_converting = True
+        self.cancel_requested = False
+        self.batch_results = []
+        self.batch_start_time = time.time()
+
+        # Update UI
+        self.convert_btn.configure(state="disabled")
+        self.cancel_btn.configure(state="normal")
+        self.add_files_btn.configure(state="disabled")
+        self.add_folder_btn.configure(state="disabled")
+        self.remove_btn.configure(state="disabled")
+        self.clear_all_btn.configure(state="disabled")
 
         # Start conversion in a separate thread
-        self.is_converting = True
-        self.convert_btn.configure(state="disabled")
-        self.progress_bar.start(10)
-        self.status_label.configure(text="Converting...")
-
         thread = threading.Thread(
-            target=self.convert_video,
-            args=(input_path, output_path),
+            target=self._run_batch_conversion,
             daemon=True
         )
         thread.start()
 
-    def convert_video(self, input_path, output_path):
+        # Start elapsed time updater
+        self._update_elapsed_time()
+
+    def _run_batch_conversion(self):
+        """Run the batch conversion (called in a separate thread)."""
+        from batch_converter import BatchConverter, BatchResult
+
+        def progress_callback(current: int, total: int, current_file: Path):
+            self.root.after(0, lambda: self.on_batch_progress(current, total, current_file))
+
+        converter = BatchConverter(
+            progress_callback=progress_callback,
+            output_dir=self.output_dir
+        )
+
+        total = len(self.file_queue)
+        for index, input_file in enumerate(self.file_queue, start=1):
+            if self.cancel_requested:
+                self.root.after(0, lambda: self.log("Batch cancelled by user"))
+                break
+
+            # Update current file display
+            self.root.after(0, lambda f=input_file: self.current_file_label.configure(
+                text=f"Converting: {f.name}"
+            ))
+
+            # Perform conversion
+            output_file = converter._get_output_path(input_file)
+            try:
+                success = self._convert_single_file(str(input_file), str(output_file))
+                if success:
+                    result = BatchResult(
+                        input_file=input_file,
+                        output_file=output_file,
+                        success=True,
+                        error=None
+                    )
+                else:
+                    result = BatchResult(
+                        input_file=input_file,
+                        output_file=None,
+                        success=False,
+                        error="Conversion failed"
+                    )
+            except Exception as e:
+                result = BatchResult(
+                    input_file=input_file,
+                    output_file=None,
+                    success=False,
+                    error=str(e)
+                )
+
+            self.batch_results.append(result)
+            progress_callback(index, total, input_file)
+
+        # Conversion complete
+        self.root.after(0, self._batch_complete)
+
+    def _convert_single_file(self, input_path: str, output_path: str) -> bool:
+        """Convert a single file.
+
+        Args:
+            input_path: Path to input MTS file.
+            output_path: Path for output MP4 file.
+
+        Returns:
+            True if conversion succeeded, False otherwise.
+        """
         try:
             # Get filming time
             filming_time = self.get_video_creation_time(input_path)
             self.root.after(0, lambda: self.log(
-                f"Filming time: {filming_time.strftime('%Y-%m-%d %H:%M:%S')}"
+                f"Processing: {Path(input_path).name} "
+                f"(filmed: {filming_time.strftime('%Y-%m-%d %H:%M')})"
             ))
 
             # Position mapping
@@ -318,8 +604,6 @@ class MTSConverterGUI:
                 output_path
             ]
 
-            self.root.after(0, lambda: self.log("Starting FFmpeg conversion..."))
-
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -335,31 +619,93 @@ class MTSConverterGUI:
                     ))
 
             process.wait()
-
-            if process.returncode == 0:
-                self.root.after(0, lambda: self.conversion_complete(True, output_path))
-            else:
-                self.root.after(0, lambda: self.conversion_complete(False, "FFmpeg error"))
+            return process.returncode == 0
 
         except Exception as e:
-            self.root.after(0, lambda: self.conversion_complete(False, str(e)))
+            self.root.after(0, lambda: self.log(f"Error: {e}"))
+            return False
 
-    def conversion_complete(self, success, message):
+    def on_batch_progress(self, current: int, total: int, current_file: Path):
+        """Handle batch progress updates.
+
+        Args:
+            current: Current file number (1-based).
+            total: Total number of files.
+            current_file: Path to the file just processed.
+        """
+        # Update progress bar
+        progress_pct = (current / total) * 100
+        self.batch_progress_var.set(progress_pct)
+
+        # Update counter
+        self.file_counter_label.configure(text=f"{current} of {total} files")
+
+        # Update listbox to show completion status
+        if current <= self.file_listbox.size():
+            result = self.batch_results[current - 1] if current <= len(self.batch_results) else None
+            if result:
+                status = "✓" if result.success else "✗"
+                item_text = f"{status} {current_file.name}"
+                self.file_listbox.delete(current - 1)
+                self.file_listbox.insert(current - 1, item_text)
+
+    def _update_elapsed_time(self):
+        """Update the elapsed time display."""
+        if self.is_converting and self.batch_start_time:
+            elapsed = int(time.time() - self.batch_start_time)
+            minutes = elapsed // 60
+            seconds = elapsed % 60
+            self.elapsed_time_label.configure(text=f"Elapsed: {minutes:02d}:{seconds:02d}")
+            self.root.after(1000, self._update_elapsed_time)
+
+    def _batch_complete(self):
+        """Handle batch conversion completion."""
         self.is_converting = False
-        self.progress_bar.stop()
-        self.convert_btn.configure(state="normal")
 
-        if success:
-            self.status_label.configure(text="Conversion complete!")
-            self.log(f"Success! Output saved to: {message}")
-            messagebox.showinfo("Success", f"Video converted successfully!\n\n{message}")
+        # Reset UI
+        self.convert_btn.configure(state="normal")
+        self.cancel_btn.configure(state="disabled")
+        self.add_files_btn.configure(state="normal")
+        self.add_folder_btn.configure(state="normal")
+        self.remove_btn.configure(state="normal")
+        self.clear_all_btn.configure(state="normal")
+        self.current_file_label.configure(text="Batch complete")
+        self.status_label.configure(text="")
+
+        # Show summary
+        self.show_batch_summary()
+
+    def show_batch_summary(self):
+        """Display a summary dialog of the batch conversion results."""
+        if not self.batch_results:
+            return
+
+        successful = sum(1 for r in self.batch_results if r.success)
+        failed = len(self.batch_results) - successful
+        total = len(self.batch_results)
+
+        # Build message
+        message = f"Batch conversion complete!\n\n"
+        message += f"Total: {total} files\n"
+        message += f"Successful: {successful}\n"
+        message += f"Failed: {failed}\n"
+
+        if failed > 0:
+            message += "\nFailed files:\n"
+            for result in self.batch_results:
+                if not result.success:
+                    message += f"• {result.input_file.name}: {result.error}\n"
+
+        self.log(f"Batch complete: {successful}/{total} successful")
+
+        if failed > 0:
+            messagebox.showwarning("Batch Complete", message)
         else:
-            self.status_label.configure(text="Conversion failed")
-            self.log(f"Error: {message}")
-            messagebox.showerror("Error", f"Conversion failed:\n{message}")
+            messagebox.showinfo("Batch Complete", message)
 
 
 def main():
+    """Main entry point for the GUI application."""
     root = tk.Tk()
 
     # Try to use a modern theme on Windows

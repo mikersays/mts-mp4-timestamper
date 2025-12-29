@@ -152,3 +152,156 @@ class TestCLIBackwardCompatibility:
         assert args.input_paths == ['input.mts']
         assert args.output_file == 'custom_output.mp4'
         assert args.legacy_mode is True
+
+
+class TestCLIBatchIntegration:
+    """Tests for batch converter integration with CLI."""
+
+    def test_run_cli_function_exists(self):
+        """run_cli function should exist in mts_converter module."""
+        from mts_converter import run_cli
+
+        assert run_cli is not None
+        assert callable(run_cli)
+
+    def test_run_cli_uses_batch_converter_for_multiple_files(self, tmp_path, mocker):
+        """run_cli should use BatchConverter when multiple files are provided."""
+        from mts_converter import run_cli
+
+        # Create test files
+        mts1 = tmp_path / "video1.mts"
+        mts2 = tmp_path / "video2.mts"
+        mts1.touch()
+        mts2.touch()
+
+        # Mock the batch converter in the batch_converter module
+        mock_batch = mocker.patch('batch_converter.BatchConverter')
+        mock_instance = mock_batch.return_value
+        mock_instance.convert_batch.return_value = []
+
+        # Mock discover_files in the batch_converter module
+        mocker.patch('batch_converter.discover_files', return_value=[mts1, mts2])
+
+        # Mock check_ffmpeg
+        mocker.patch('mts_converter.check_ffmpeg', return_value=True)
+
+        run_cli([str(mts1), str(mts2)])
+
+        mock_batch.assert_called_once()
+        mock_instance.convert_batch.assert_called_once()
+
+    def test_run_cli_uses_single_file_mode_for_legacy(self, tmp_path, mocker):
+        """run_cli should use legacy single-file mode for input.mts output.mp4."""
+        from mts_converter import run_cli
+
+        mts_file = tmp_path / "video.mts"
+        mts_file.touch()
+
+        # Mock convert_video
+        mock_convert = mocker.patch('mts_converter.convert_video', return_value=True)
+        mocker.patch('mts_converter.check_ffmpeg', return_value=True)
+
+        run_cli([str(mts_file), str(tmp_path / "output.mp4")])
+
+        # Should call convert_video directly, not BatchConverter
+        mock_convert.assert_called_once()
+
+    def test_run_cli_displays_progress_during_batch(self, tmp_path, mocker, capsys):
+        """run_cli should display per-file progress during batch conversion."""
+        from mts_converter import run_cli
+        from batch_converter import BatchResult
+
+        mts1 = tmp_path / "video1.mts"
+        mts2 = tmp_path / "video2.mts"
+        mts1.touch()
+        mts2.touch()
+
+        # Mock discover_files
+        mocker.patch('batch_converter.discover_files', return_value=[mts1, mts2])
+        mocker.patch('mts_converter.check_ffmpeg', return_value=True)
+
+        # Mock BatchConverter to capture the progress callback
+        mock_batch = mocker.patch('batch_converter.BatchConverter')
+        mock_instance = mock_batch.return_value
+        mock_instance.convert_batch.return_value = [
+            BatchResult(input_file=mts1, output_file=mts1.with_suffix('.mp4'), success=True, error=None),
+            BatchResult(input_file=mts2, output_file=mts2.with_suffix('.mp4'), success=True, error=None),
+        ]
+
+        run_cli([str(mts1), str(mts2)])
+
+        # Check that progress callback was provided
+        call_kwargs = mock_batch.call_args[1]
+        assert 'progress_callback' in call_kwargs
+
+    def test_run_cli_shows_batch_summary(self, tmp_path, mocker, capsys):
+        """run_cli should show summary after batch completion."""
+        from mts_converter import run_cli
+        from batch_converter import BatchResult
+
+        mts1 = tmp_path / "video1.mts"
+        mts2 = tmp_path / "video2.mts"
+        mts1.touch()
+        mts2.touch()
+
+        mocker.patch('batch_converter.discover_files', return_value=[mts1, mts2])
+        mocker.patch('mts_converter.check_ffmpeg', return_value=True)
+
+        mock_batch = mocker.patch('batch_converter.BatchConverter')
+        mock_instance = mock_batch.return_value
+        mock_instance.convert_batch.return_value = [
+            BatchResult(input_file=mts1, output_file=mts1.with_suffix('.mp4'), success=True, error=None),
+            BatchResult(input_file=mts2, output_file=mts2.with_suffix('.mp4'), success=True, error=None),
+        ]
+
+        run_cli([str(mts1), str(mts2)])
+
+        captured = capsys.readouterr()
+        # Should show some kind of summary
+        assert "2" in captured.out  # Should mention the number of files
+
+    def test_run_cli_passes_output_dir_to_batch_converter(self, tmp_path, mocker):
+        """run_cli should pass output_dir to BatchConverter."""
+        from mts_converter import run_cli
+
+        mts_file = tmp_path / "video.mts"
+        output_dir = tmp_path / "output"
+        mts_file.touch()
+        output_dir.mkdir()
+
+        mocker.patch('batch_converter.discover_files', return_value=[mts_file])
+        mocker.patch('mts_converter.check_ffmpeg', return_value=True)
+
+        mock_batch = mocker.patch('batch_converter.BatchConverter')
+        mock_instance = mock_batch.return_value
+        mock_instance.convert_batch.return_value = []
+
+        run_cli([str(mts_file), '-o', str(output_dir)])
+
+        call_kwargs = mock_batch.call_args[1]
+        assert call_kwargs.get('output_dir') == Path(output_dir)
+
+    def test_run_cli_returns_success_count(self, tmp_path, mocker):
+        """run_cli should return tuple of (success_count, failure_count)."""
+        from mts_converter import run_cli
+        from batch_converter import BatchResult
+
+        mts1 = tmp_path / "video1.mts"
+        mts2 = tmp_path / "video2.mts"
+        mts1.touch()
+        mts2.touch()
+
+        mocker.patch('batch_converter.discover_files', return_value=[mts1, mts2])
+        mocker.patch('mts_converter.check_ffmpeg', return_value=True)
+
+        mock_batch = mocker.patch('batch_converter.BatchConverter')
+        mock_instance = mock_batch.return_value
+        mock_instance.convert_batch.return_value = [
+            BatchResult(input_file=mts1, output_file=mts1.with_suffix('.mp4'), success=True, error=None),
+            BatchResult(input_file=mts2, output_file=None, success=False, error="Error"),
+        ]
+
+        success, failed = run_cli([str(mts1), str(mts2)])
+
+        assert success == 1
+        assert failed == 1

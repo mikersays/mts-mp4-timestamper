@@ -263,6 +263,74 @@ def convert_video(input_file, output_file=None, font_size=24, position="top-left
         return False
 
 
+def run_cli(args):
+    """Run the CLI with the given arguments.
+
+    Args:
+        args: List of command-line arguments (without script name).
+
+    Returns:
+        Tuple of (success_count, failure_count).
+    """
+    # Import here to avoid circular import
+    from batch_converter import BatchConverter, discover_files
+
+    parsed = parse_args(args)
+
+    if parsed is None:
+        return (0, 0)
+
+    # Check for FFmpeg
+    if not check_ffmpeg():
+        print("\nError: FFmpeg is not installed or not in PATH.")
+        return (0, 0)
+
+    # Legacy mode: single file with explicit output
+    if parsed.legacy_mode:
+        success = convert_video(parsed.input_paths[0], parsed.output_file)
+        return (1, 0) if success else (0, 1)
+
+    # Batch mode: discover files and use BatchConverter
+    files = discover_files(parsed.input_paths)
+
+    if not files:
+        print("No MTS files found.")
+        return (0, 0)
+
+    # Progress callback for displaying per-file progress
+    def progress_callback(current, total, current_file):
+        print(f"Converting {current}/{total}: {current_file.name}")
+
+    # Create batch converter with output directory if specified
+    output_dir = Path(parsed.output_dir) if parsed.output_dir else None
+    converter = BatchConverter(
+        progress_callback=progress_callback,
+        output_dir=output_dir
+    )
+
+    # Run batch conversion
+    results = converter.convert_batch(files)
+
+    # Calculate success/failure counts
+    success_count = sum(1 for r in results if r.success)
+    failure_count = len(results) - success_count
+
+    # Show batch summary
+    print(f"\n{'=' * 40}")
+    print(f"Batch conversion complete:")
+    print(f"  Total: {len(results)} files")
+    print(f"  Successful: {success_count}")
+    print(f"  Failed: {failure_count}")
+
+    if failure_count > 0:
+        print("\nFailed files:")
+        for r in results:
+            if not r.success:
+                print(f"  - {r.input_file.name}: {r.error}")
+
+    return (success_count, failure_count)
+
+
 def main():
     """Main entry point."""
     print("=" * 60)

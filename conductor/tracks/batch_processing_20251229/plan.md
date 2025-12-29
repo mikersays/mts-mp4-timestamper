@@ -53,33 +53,33 @@
 
 ## Phase 3: GUI Integration
 
-### Task 3.1: Add file queue UI components
-- [ ] Replace single file input with file list widget
-- [ ] Add "Add Files" button for multi-file selection
-- [ ] Add "Add Folder" button for directory selection
-- [ ] Add "Remove" button to remove selected files from queue
-- [ ] Add "Clear All" button
+### Task 3.1: Add file queue UI components [f02a232]
+- [x] Replace single file input with file list widget
+- [x] Add "Add Files" button for multi-file selection
+- [x] Add "Add Folder" button for directory selection
+- [x] Add "Remove" button to remove selected files from queue
+- [x] Add "Clear All" button
 
-### Task 3.2: Update progress UI for batch mode
-- [ ] Add overall batch progress bar
-- [ ] Show current file being processed
-- [ ] Display "X of Y files" counter
-- [ ] Add elapsed/estimated time display
+### Task 3.2: Update progress UI for batch mode [f02a232]
+- [x] Add overall batch progress bar
+- [x] Show current file being processed
+- [x] Display "X of Y files" counter
+- [x] Add elapsed/estimated time display
 
-### Task 3.3: Implement batch conversion in GUI
-- [ ] Integrate BatchConverter with GUI
-- [ ] Update progress callback to refresh UI
-- [ ] Handle thread-safe UI updates
+### Task 3.3: Implement batch conversion in GUI [f02a232]
+- [x] Integrate BatchConverter with GUI
+- [x] Update progress callback to refresh UI
+- [x] Handle thread-safe UI updates
 
-### Task 3.4: Add cancel functionality
-- [ ] Add "Cancel" button during conversion
-- [ ] Implement graceful cancellation (finish current file)
-- [ ] Update UI to show cancelled state
+### Task 3.4: Add cancel functionality [f02a232]
+- [x] Add "Cancel" button during conversion
+- [x] Implement graceful cancellation (finish current file)
+- [x] Update UI to show cancelled state
 
-### Task 3.5: Batch completion and error display
-- [ ] Show summary dialog on completion
-- [ ] List any failed files with error reasons
-- [ ] Allow user to retry failed files
+### Task 3.5: Batch completion and error display [f02a232]
+- [x] Show summary dialog on completion
+- [x] List any failed files with error reasons
+- [x] Allow user to retry failed files
 
 ### Task 3.6: Phase 3 Completion
 - [ ] Run all tests and verify >80% coverage

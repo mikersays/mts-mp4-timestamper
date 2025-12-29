@@ -88,10 +88,10 @@
 
 ## Phase 4: Documentation and Polish
 
-### Task 4.1: Update README documentation
-- [ ] Document CLI batch usage with examples
-- [ ] Document GUI batch workflow
-- [ ] Add troubleshooting section for batch issues
+### Task 4.1: Update README documentation [0655bdf]
+- [x] Document CLI batch usage with examples
+- [x] Document GUI batch workflow
+- [x] Add troubleshooting section for batch issues
 
 ### Task 4.2: Update CLAUDE.md
 - [ ] Add batch processing to architecture section

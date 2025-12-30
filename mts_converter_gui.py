@@ -714,7 +714,7 @@ class MTSConverterGUI:
             # Build drawtext filter
             drawtext_filter = (
                 f"drawtext="
-                f"text='%{{pts\\:localtime\\:{int(filming_time.timestamp())}\\:%Y-%m-%d %H\\\\\\:%M}}':"
+                f"text='%{{pts\\:localtime\\:{int(filming_time.timestamp())}\\:%Y-%m-%d %H\\\\\\:%M\\\\\\:%S}}':"
                 f"fontsize={font_size}:"
                 f"fontcolor=white:"
                 f"borderw=2:"
@@ -734,6 +734,7 @@ class MTSConverterGUI:
                 "-c:v", "libx264",
                 "-preset", "medium",
                 "-crf", "23",
+                "-threads", "0",  # Use all available CPU cores
                 "-c:a", "aac",
                 "-b:a", "192k",
                 "-movflags", "+faststart",

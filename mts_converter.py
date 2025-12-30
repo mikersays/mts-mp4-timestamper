@@ -460,11 +460,11 @@ def convert_video(input_file, output_file=None, font_size=32, position=None, res
     pos = get_position_coordinates(position)
 
     # Build the drawtext filter with dynamic time calculation
-    # The timestamp updates every minute (floor to minute)
+    # The timestamp updates every second as the video plays
     # We use FFmpeg expression language to calculate current time
     drawtext_filter = (
         f"drawtext="
-        f"text='%{{pts\\:localtime\\:{int(filming_time.timestamp())}\\:%Y-%m-%d %H\\\\\\:%M}}':"
+        f"text='%{{pts\\:localtime\\:{int(filming_time.timestamp())}\\:%Y-%m-%d %H\\\\\\:%M\\\\\\:%S}}':"
         f"fontsize={font_size}:"
         f"fontcolor=white:"
         f"borderw=2:"
@@ -484,6 +484,7 @@ def convert_video(input_file, output_file=None, font_size=32, position=None, res
         "-c:v", "libx264",
         "-preset", "medium",
         "-crf", "23",
+        "-threads", "0",  # Use all available CPU cores
         "-c:a", "aac",
         "-b:a", "192k",
         "-movflags", "+faststart",

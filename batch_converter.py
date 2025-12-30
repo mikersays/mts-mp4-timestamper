@@ -12,7 +12,7 @@ from glob import glob
 from pathlib import Path
 from typing import Callable, List, Optional
 
-from mts_converter import convert_video, DEFAULT_POSITION, DEFAULT_RESOLUTION
+from mts_converter import convert_video, DEFAULT_POSITION, DEFAULT_RESOLUTION, get_unique_output_path
 
 
 # Type alias for progress callback
@@ -79,24 +79,7 @@ class BatchConverter:
         Returns:
             Path for the output MP4 file, handling conflicts if needed.
         """
-        if self.output_dir is None:
-            return input_file.with_suffix('.mp4')
-
-        # Use output_dir with original filename
-        base_output = self.output_dir / input_file.with_suffix('.mp4').name
-
-        # Handle filename conflicts
-        if not base_output.exists():
-            return base_output
-
-        # Find a unique filename with numeric suffix
-        stem = input_file.stem
-        counter = 1
-        while True:
-            candidate = self.output_dir / f"{stem}_{counter}.mp4"
-            if not candidate.exists():
-                return candidate
-            counter += 1
+        return get_unique_output_path(input_file, self.output_dir)
 
     def convert_batch(self, files: List[Path]) -> List[BatchResult]:
         """Convert a batch of MTS files to MP4 format.

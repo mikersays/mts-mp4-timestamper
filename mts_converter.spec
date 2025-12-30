@@ -24,16 +24,41 @@ for exe in ['ffmpeg.exe', 'ffprobe.exe']:
 if not ffmpeg_files:
     print("WARNING: ffmpeg.exe/ffprobe.exe not found - they won't be bundled!")
 
+# Collect tkinterdnd2 data files for drag and drop support
+tkdnd_datas = []
+tkdnd_binaries = []
+try:
+    import tkinterdnd2
+    tkdnd_path = os.path.dirname(tkinterdnd2.__file__)
+    # Collect the entire tkinterdnd2 package (includes TkDND Tcl extension)
+    for root, dirs, files in os.walk(tkdnd_path):
+        for file in files:
+            src = os.path.join(root, file)
+            # Compute destination path relative to tkinterdnd2
+            rel_path = os.path.relpath(root, tkdnd_path)
+            if rel_path == '.':
+                dest = 'tkinterdnd2'
+            else:
+                dest = os.path.join('tkinterdnd2', rel_path)
+            tkdnd_datas.append((src, dest))
+    print(f"Found tkinterdnd2 at: {tkdnd_path}")
+    print(f"Collected {len(tkdnd_datas)} tkinterdnd2 files")
+except ImportError:
+    print("WARNING: tkinterdnd2 not installed - drag & drop won't be available")
+
+# Runtime hook for tkinterdnd2 (helps find TkDND in bundled exe)
+tkdnd_runtime_hook = ['hook-tkinterdnd2.py'] if os.path.exists('hook-tkinterdnd2.py') else []
+
 # GUI version (single file)
 gui_a = Analysis(
     ['mts_converter_gui.py'],
     pathex=[],
     binaries=ffmpeg_files,
-    datas=[],
-    hiddenimports=[],
+    datas=tkdnd_datas,
+    hiddenimports=['tkinterdnd2'],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=tkdnd_runtime_hook,
     excludes=[],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

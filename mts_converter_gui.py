@@ -32,6 +32,13 @@ except ImportError:
     print("Please use the command-line version: mts_converter.py")
     sys.exit(1)
 
+# Try to import tkinterdnd2 for drag and drop support
+try:
+    from tkinterdnd2 import DND_FILES, TkinterDnD
+    DND_AVAILABLE = True
+except ImportError:
+    DND_AVAILABLE = False
+
 
 class MTSConverterGUI:
     """GUI application for batch converting MTS videos to MP4 with timestamps."""
@@ -44,7 +51,7 @@ class MTSConverterGUI:
         """
         self.root = root
         self.root.title("MTS to MP4 Converter with Timestamp")
-        self.root.geometry("700x600")
+        self.root.geometry("700x750")
         self.root.resizable(True, True)
 
         # File queue for batch processing
@@ -55,6 +62,8 @@ class MTSConverterGUI:
         self.is_converting = False
         self.cancel_requested = False
         self.batch_start_time: Optional[float] = None
+        self.current_process: Optional[subprocess.Popen] = None
+        self.current_output_path: Optional[str] = None
 
         # Output directory (None = same as source)
         self.output_dir: Optional[Path] = None
@@ -69,6 +78,7 @@ class MTSConverterGUI:
         self.file_progress_var = tk.DoubleVar(value=0)
 
         self.create_widgets()
+        self.setup_drag_and_drop()
         self.check_dependencies()
 
     def create_widgets(self):
@@ -324,6 +334,114 @@ class MTSConverterGUI:
         self.log_text.see("end")
         self.log_text.configure(state="disabled")
 
+    def setup_drag_and_drop(self):
+        """Set up drag and drop support for the file listbox."""
+        if not DND_AVAILABLE:
+            self.log("Note: Drag & drop not available (install: pip install tkinterdnd2)")
+            return
+
+        try:
+            # Register the file listbox as a drop target
+            self.file_listbox.drop_target_register(DND_FILES)
+            self.file_listbox.dnd_bind('<<Drop>>', self.on_drop)
+
+            # Also register the main window as a drop target for better UX
+            self.root.drop_target_register(DND_FILES)
+            self.root.dnd_bind('<<Drop>>', self.on_drop)
+
+            self.log("Drag & drop enabled - drop MTS files here")
+        except Exception as e:
+            self.log(f"Warning: Could not enable drag & drop: {e}")
+
+    def on_drop(self, event):
+        """Handle files dropped onto the application.
+
+        Args:
+            event: The drop event containing file paths.
+        """
+        if self.is_converting:
+            messagebox.showwarning(
+                "Conversion in Progress",
+                "Cannot add files while conversion is in progress."
+            )
+            return
+
+        # Parse the dropped files
+        # tkinterdnd2 returns paths in different formats depending on OS
+        # On Windows, paths with spaces are enclosed in curly braces
+        dropped_data = event.data
+
+        # Parse the file paths from the drop data
+        files = self._parse_dropped_files(dropped_data)
+
+        # Separate MTS and non-MTS files
+        mts_files = []
+        non_mts_files = []
+
+        for file_path in files:
+            path = Path(file_path)
+            if path.suffix.upper() == '.MTS':
+                mts_files.append(path)
+            else:
+                non_mts_files.append(path)
+
+        # Show error for non-MTS files
+        if non_mts_files:
+            non_mts_names = [p.name for p in non_mts_files[:5]]
+            if len(non_mts_files) > 5:
+                non_mts_names.append(f"... and {len(non_mts_files) - 5} more")
+            messagebox.showerror(
+                "Invalid File Format",
+                f"Only .MTS files are supported.\n\n"
+                f"The following files were skipped:\n" +
+                "\n".join(f"  - {name}" for name in non_mts_names)
+            )
+
+        # Add valid MTS files to queue
+        if mts_files:
+            self.add_files_to_queue(mts_files)
+            # Ensure the listbox scrolls to show newly added files
+            self.file_listbox.see(tk.END)
+            self.root.update_idletasks()
+
+    def _parse_dropped_files(self, drop_data: str) -> List[str]:
+        """Parse file paths from drag and drop data.
+
+        On Windows, tkinterdnd2 returns paths with spaces enclosed in curly braces.
+        Example: '{C:/path with spaces/file.mts} C:/normal/path.mts'
+
+        Args:
+            drop_data: Raw drop data string from tkinterdnd2.
+
+        Returns:
+            List of file path strings.
+        """
+        files = []
+        i = 0
+        while i < len(drop_data):
+            if drop_data[i] == '{':
+                # Path with spaces - find closing brace
+                end = drop_data.find('}', i)
+                if end != -1:
+                    files.append(drop_data[i+1:end])
+                    i = end + 1
+                else:
+                    break
+            elif drop_data[i] == ' ':
+                # Skip whitespace between paths
+                i += 1
+            else:
+                # Path without spaces - find next space or end
+                end = drop_data.find(' ', i)
+                if end == -1:
+                    files.append(drop_data[i:])
+                    break
+                else:
+                    files.append(drop_data[i:end])
+                    i = end
+
+        return [f for f in files if f.strip()]
+
     def browse_add_files(self):
         """Open file dialog to add multiple MTS files to queue."""
         filenames = filedialog.askopenfilenames(
@@ -576,8 +694,15 @@ class MTSConverterGUI:
     def request_cancel(self):
         """Request cancellation of the current batch operation."""
         self.cancel_requested = True
-        self.log("Cancel requested - will stop after current file...")
+        self.log("Cancelling...")
         self.cancel_btn.configure(state="disabled")
+
+        # Kill the current FFmpeg process if running
+        if self.current_process is not None:
+            try:
+                self.current_process.kill()
+            except Exception:
+                pass
 
     def start_batch_conversion(self):
         """Start batch conversion of all queued files."""
@@ -742,6 +867,9 @@ class MTSConverterGUI:
                 output_path
             ]
 
+            # Store output path for cleanup on cancel
+            self.current_output_path = output_path
+
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -750,7 +878,14 @@ class MTSConverterGUI:
                 creationflags=get_subprocess_flags()
             )
 
+            # Store process reference for cancellation
+            self.current_process = process
+
             for line in process.stdout:
+                # Check for cancellation
+                if self.cancel_requested:
+                    break
+
                 if "frame=" in line:
                     # Update status label with FFmpeg output
                     self.root.after(0, lambda l=line: self.status_label.configure(
@@ -762,6 +897,23 @@ class MTSConverterGUI:
                         self._update_file_progress(progress)
 
             process.wait()
+
+            # Clear process reference
+            self.current_process = None
+
+            # Handle cancellation - delete partial file
+            if self.cancel_requested:
+                try:
+                    output_file = Path(output_path)
+                    if output_file.exists():
+                        output_file.unlink()
+                        self.root.after(0, lambda: self.log(f"Deleted partial file: {output_file.name}"))
+                except Exception:
+                    pass
+                self.current_output_path = None
+                return False
+
+            self.current_output_path = None
 
             # Set progress to 100% on completion
             if process.returncode == 0:
@@ -857,7 +1009,19 @@ class MTSConverterGUI:
 
 def main():
     """Main entry point for the GUI application."""
-    root = tk.Tk()
+    global DND_AVAILABLE
+
+    # Use TkinterDnD for drag and drop support if available
+    if DND_AVAILABLE:
+        try:
+            root = TkinterDnD.Tk()
+        except Exception as e:
+            # TkDND library failed to load - fall back to regular Tk
+            print(f"Note: Drag & drop unavailable ({e})")
+            DND_AVAILABLE = False
+            root = tk.Tk()
+    else:
+        root = tk.Tk()
 
     # Try to use a modern theme on Windows
     try:

@@ -23,6 +23,14 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+REM Check for tkinterdnd2 (required for drag & drop)
+python -c "import tkinterdnd2" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo.
+    echo Installing tkinterdnd2 for drag ^& drop support...
+    pip install tkinterdnd2
+)
+
 REM Check for FFmpeg files
 set FFMPEG_FOUND=0
 if exist "ffmpeg.exe" set FFMPEG_FOUND=1

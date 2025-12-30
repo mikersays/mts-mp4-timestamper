@@ -37,6 +37,36 @@ class MetadataExtractionError(Exception):
     pass
 
 
+def get_unique_output_path(input_path: Path, output_dir: Path = None) -> Path:
+    """Get a unique output path that won't overwrite existing files.
+
+    Args:
+        input_path: Path to the input file.
+        output_dir: Optional output directory. If None, uses input file's directory.
+
+    Returns:
+        Path for the output MP4 file with sequential numbering if needed.
+    """
+    if output_dir is None:
+        output_dir = input_path.parent
+
+    # Base output path
+    base_output = output_dir / input_path.with_suffix('.mp4').name
+
+    # If no conflict, use the base name
+    if not base_output.exists():
+        return base_output
+
+    # Find a unique filename with numeric suffix like "filename (1).mp4"
+    stem = input_path.stem
+    counter = 1
+    while True:
+        candidate = output_dir / f"{stem} ({counter}).mp4"
+        if not candidate.exists():
+            return candidate
+        counter += 1
+
+
 def _bcd_to_int(byte_val):
     """Decode a BCD (Binary-Coded Decimal) byte to integer.
 
@@ -440,10 +470,11 @@ def convert_video(input_file, output_file=None, font_size=32, position=None, res
     if not input_path.suffix.lower() == '.mts':
         print(f"Warning: Input file is not .MTS format, proceeding anyway...")
 
-    # Set output filename
+    # Set output filename - use unique path to avoid overwriting
     if output_file is None:
-        output_file = input_path.with_suffix('.mp4')
-    output_path = Path(output_file)
+        output_path = get_unique_output_path(input_path)
+    else:
+        output_path = Path(output_file)
 
     # Get the original filming time
     try:
